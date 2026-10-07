@@ -329,7 +329,7 @@ async function diagnosticoFirebase(){
   if(CONFIG_FALTA){ showMsg("⚠️ Falta conectar Firebase: pega tu firebaseConfig en index.html (sigue el README)."); return; }
   const timeout = new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout",message:"Sin respuesta tras 8 segundos"}), 8000));
   try{
-    await Promise.race([ db.collection("__diag__").doc("ping").get(), timeout ]);
+    await Promise.race([ db.collection("diagnostico").doc("ping").get(), timeout ]);
     bannerConexion("✅ Conectado a Firebase correctamente. ¡Todo listo!", false);
   }catch(e){
     bannerConexion("⚠️ Sin conexión con Firebase &nbsp;<b>("+(e.code||"error")+")</b>: "+escapeHtml(msgDeError(e))+
