@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // DEMO entre amigos: acceso abierto.
+    // OJO: cualquiera con la URL del juego puede leer/escribir.
+    // Si el casino crece, aquí hay que añadir reglas más estrictas
+    // (por ejemplo: que solo el admin pueda modificar balances ajenos).
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

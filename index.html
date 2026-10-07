@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Casino — Portal de usuarios (Demo)</title>
+<style>
+:root{--bg:#090d18;--card:#121a2b;--card2:#0e1524;--gold:#f5c451;--text:#f5f7fb;--muted:#9aa7bd;--green:#37d39a;--red:#ff6b7a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#1b2742 0,#090d18 48%);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;min-height:100vh}
+.wallet{position:sticky;top:0;z-index:50;background:#0b1220ee;backdrop-filter:blur(10px);border-bottom:1px solid #2b3b59;padding:10px 18px;text-align:right;color:#f5c451;font-size:16px}.wrap{max-width:1100px;margin:auto;padding:22px}.brand{text-align:center;margin:15px 0 22px}.brand h1{margin:0;color:var(--gold);letter-spacing:1px}.brand p{color:var(--muted);margin:5px}
+.card{background:rgba(18,26,43,.94);border:1px solid #263552;border-radius:18px;padding:20px;box-shadow:0 12px 40px #0006;margin-bottom:16px}.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{flex:1}.hidden{display:none!important}
+input,button,select{width:100%;padding:12px 14px;border-radius:11px;border:1px solid #334463;background:#0a1120;color:var(--text);margin:6px 0}button{cursor:pointer;font-weight:700}.primary{background:linear-gradient(135deg,#f5c451,#d89d22);color:#17120a;border:0}.ghost{background:#17223a}.danger{background:#4a1d29;border-color:#7a3040}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.profile{display:flex;align-items:center;gap:12px;cursor:pointer}.avatar{width:54px;height:54px;border-radius:50%;object-fit:cover;background:#263552;border:2px solid var(--gold)}.balance{font-size:28px;color:var(--gold);font-weight:800}.muted{color:var(--muted)}.menu{display:grid;gap:7px;margin-top:12px}.menu button{text-align:left}.games{min-height:270px;display:grid;place-items:center;border:1px dashed #3b4d6e;border-radius:16px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:9px;border-bottom:1px solid #263552;text-align:left}th{color:var(--gold)}.ok{color:var(--green)}.bad{color:var(--red)}
+.notice{padding:11px 13px;border-radius:10px;background:#17223a;color:#cbd5e8;font-size:13px}
+.roulette-wrap canvas{transition:transform 5s cubic-bezier(.12,.7,.15,1);transform-origin:50% 50%}
+.roulette-wrap{position:relative;width:min(88vw,430px);height:min(88vw,430px);margin:24px auto;display:flex;align-items:center;justify-content:center}.roulette-wrap canvas{display:block;width:100%;height:100%;max-width:430px;max-height:430px;margin:0 auto;border-radius:50%;box-shadow:0 0 0 8px #6b5420,0 0 35px #000;background:#111}.pointer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);z-index:5;font-size:38px;filter:drop-shadow(0 3px 4px #000)}.roulette-center{position:absolute;width:70px;height:70px;border-radius:50%;background:#111827;border:5px solid #f5c451;display:grid;place-items:center;font-size:25px;box-shadow:0 0 15px #000;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+.participant{display:flex;align-items:center;gap:10px;padding:10px;background:#0a1120;border:1px solid #263552;border-radius:10px}.num{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#263552;color:#f5c451;font-weight:800}
+</style>
+
+<style id="casino-enhance">
+body::before{
+content:"";
+position:fixed;inset:0;pointer-events:none;
+background-image:
+radial-gradient(circle,#ffd700 1px,transparent 1px),
+radial-gradient(circle,#ffffff 1px,transparent 1px);
+background-size:80px 80px,120px 120px;
+opacity:.18;
+animation:stars 25s linear infinite;
+}
+@keyframes stars{from{transform:translateY(0)}to{transform:translateY(-120px)}}
+.brand h1{
+text-shadow:0 0 10px #ffd700,0 0 20px #ffd700,0 0 40px #ffb700;
+animation:pulse 2s infinite alternate;
+}
+@keyframes pulse{from{filter:brightness(1)}to{filter:brightness(1.3)}}
+.card{
+backdrop-filter:blur(14px)!important;
+box-shadow:0 0 25px rgba(255,215,0,.15),0 12px 40px rgba(0,0,0,.55)!important;
+}
+button:hover{
+transform:translateY(-2px);
+transition:.25s;
+}
+</style>
+
+
+<style id="chip-rain-style">
+.chip-rain{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:9999;display:none}
+.chip{position:absolute;top:-60px;font-size:28px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style id="casino-vip">
+/* ===== Base y atmósfera ===== */
+:root{color-scheme:dark;--gold2:#ffe08a;--gold3:#b8862b;--wine:#5b1230;--violet:#2a1658}
+html{scroll-behavior:smooth}
+body{font-family:'Poppins',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+background:
+ radial-gradient(ellipse 80% 50% at 50% -10%,#2b1d52 0,transparent 60%),
+ radial-gradient(ellipse 60% 40% at 100% 100%,#3a0f26 0,transparent 60%),
+ radial-gradient(ellipse 60% 40% at 0% 100%,#0f2a4a 0,transparent 60%),
+ #070a14;
+background-attachment:fixed}
+::selection{background:#f5c451;color:#17120a}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-track{background:#0a0f1c}::-webkit-scrollbar-thumb{background:linear-gradient(#f5c451,#b8862b);border-radius:10px}
+
+/* luces ambientales que se mueven despacio */
+body::after{content:"";position:fixed;inset:-20%;pointer-events:none;z-index:0;
+background:
+ radial-gradient(circle at 20% 30%,rgba(245,196,81,.10),transparent 30%),
+ radial-gradient(circle at 80% 20%,rgba(160,60,255,.10),transparent 32%),
+ radial-gradient(circle at 70% 80%,rgba(255,70,110,.08),transparent 30%);
+animation:drift 22s ease-in-out infinite alternate}
+@keyframes drift{from{transform:translate3d(-2%,-1%,0) scale(1)}to{transform:translate3d(2%,2%,0) scale(1.08)}}
+.wrap{position:relative;z-index:1}
+
+/* ===== Barra de saldo ===== */
+.wallet{background:linear-gradient(180deg,rgba(11,18,32,.96),rgba(11,18,32,.82))!important;border-bottom:1px solid rgba(245,196,81,.35)!important;box-shadow:0 6px 24px rgba(0,0,0,.5),0 1px 0 rgba(245,196,81,.25);font-weight:600;letter-spacing:.3px}
+.wallet span{display:inline-block;animation:coinflip 3.2s ease-in-out infinite;filter:drop-shadow(0 0 6px rgba(245,196,81,.7))}
+.wallet b{font-size:18px;color:var(--gold2);text-shadow:0 0 12px rgba(245,196,81,.55);font-variant-numeric:tabular-nums}
+@keyframes coinflip{0%,60%,100%{transform:rotateY(0)}80%{transform:rotateY(360deg)}}
+
+/* ===== Título ===== */
+.brand{margin:26px 0 28px!important}
+.brand h1{font-family:'Cinzel',Georgia,serif;font-weight:800;font-size:clamp(26px,6.5vw,46px);letter-spacing:3px!important;
+background:linear-gradient(180deg,#fff3c4 0%,#f5c451 45%,#b8862b 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;
+text-shadow:none!important;animation:titleGlow 2.8s ease-in-out infinite alternate!important}
+@keyframes titleGlow{from{filter:drop-shadow(0 0 6px rgba(255,200,60,.45)) brightness(1)}to{filter:drop-shadow(0 0 18px rgba(255,200,60,.85)) brightness(1.18)}}
+.brand p{display:flex;align-items:center;justify-content:center;gap:12px;letter-spacing:6px;text-transform:uppercase;font-size:11px!important;color:#c9b27a!important;margin-top:10px!important}
+.brand p::before,.brand p::after{content:"";width:clamp(26px,12vw,64px);height:1px;background:linear-gradient(90deg,transparent,#f5c451)}
+.brand p::after{transform:scaleX(-1)}
+
+/* ===== Tarjetas ===== */
+.card{background:linear-gradient(160deg,rgba(26,36,62,.92),rgba(11,17,31,.94))!important;border:1px solid rgba(245,196,81,.22)!important;border-radius:20px!important;position:relative}
+.card::before{content:"";position:absolute;left:18px;right:18px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,224,138,.7),transparent);pointer-events:none}
+#auth{max-width:460px;margin-left:auto;margin-right:auto}
+#auth,#app>*{animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* ===== Botones e inputs ===== */
+input,button,select{font-family:inherit;transition:transform .2s,box-shadow .25s,border-color .25s,background .25s,filter .25s}
+input,select{background:rgba(6,10,20,.85)!important}
+input:focus,select:focus{outline:none;border-color:#f5c451!important;box-shadow:0 0 0 3px rgba(245,196,81,.22),0 0 18px rgba(245,196,81,.2)}
+button:active{transform:translateY(1px) scale(.985)!important}
+.primary{position:relative;overflow:hidden;box-shadow:0 6px 20px rgba(216,157,34,.35),inset 0 1px 0 rgba(255,255,255,.45);text-shadow:0 1px 0 rgba(255,255,255,.25)}
+.primary:hover{box-shadow:0 8px 28px rgba(245,196,81,.55),inset 0 1px 0 rgba(255,255,255,.5);filter:brightness(1.07)}
+.primary::after{content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-20deg);animation:shine 3.6s ease-in-out infinite}
+@keyframes shine{0%,55%{left:-70%}100%{left:130%}}
+.ghost{background:linear-gradient(180deg,#1b2745,#121b32)!important;border-color:#2f4166!important}
+.ghost:hover{border-color:rgba(245,196,81,.6)!important;box-shadow:0 0 16px rgba(245,196,81,.18)}
+.danger:hover{box-shadow:0 0 16px rgba(255,107,122,.3)}
+button:disabled{opacity:.6;cursor:not-allowed}
+
+/* ===== Perfil y saldo ===== */
+.avatar{border:2px solid var(--gold2)!important;box-shadow:0 0 0 3px rgba(245,196,81,.2),0 0 18px rgba(245,196,81,.45)}
+.profile{transition:transform .2s}.profile:hover{transform:translateX(2px)}
+.balance{background:linear-gradient(180deg,#fff3c4,#f5c451 55%,#c9972b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-variant-numeric:tabular-nums;filter:drop-shadow(0 0 10px rgba(245,196,81,.35))}
+
+/* ===== Selector de juegos ===== */
+.games{border:1px dashed rgba(245,196,81,.25)!important;background:radial-gradient(circle at 50% 0,rgba(245,196,81,.06),transparent 70%)}
+#mainGames .games button.ghost{position:relative;overflow:hidden;border-radius:18px;border:1px solid rgba(245,196,81,.3)!important;
+background:radial-gradient(circle at 50% 25%,rgba(245,196,81,.14),transparent 60%),linear-gradient(180deg,#1a2342,#0e1526)!important}
+#mainGames .games button.ghost:hover{transform:translateY(-5px) scale(1.02);border-color:#f5c451!important;box-shadow:0 14px 34px rgba(0,0,0,.55),0 0 28px rgba(245,196,81,.35)}
+#mainGames .games button.ghost{animation:bob 4s ease-in-out infinite}
+#mainGames .games button.ghost:nth-child(2){animation-delay:-2s}
+@keyframes bob{0%,100%{box-shadow:0 0 0 rgba(245,196,81,0)}50%{box-shadow:0 0 22px rgba(245,196,81,.2)}}
+#mainGames .games button.ghost>div{font-weight:700;color:var(--gold2);letter-spacing:.5px}
+
+/* ===== Mensajes ===== */
+#rouletteMessage,#rouletteMessage2{border:1px solid rgba(245,196,81,.2);border-left:3px solid #f5c451;text-align:left;background:linear-gradient(90deg,rgba(245,196,81,.08),#17223a 40%)}
+#rouletteMessage,#rouletteMessage2{text-align:center}
+
+/* ===== Ruleta ===== */
+.roulette-wrap{margin:44px auto!important}
+.roulette-wrap::before{content:"";position:absolute;inset:-24px;border-radius:50%;
+background:repeating-conic-gradient(from 0deg,#ffe08a 0 3deg,transparent 3deg 12deg);
+-webkit-mask:radial-gradient(circle closest-side,transparent 91%,#000 92%);mask:radial-gradient(circle closest-side,transparent 91%,#000 92%);
+filter:drop-shadow(0 0 5px #f5c451);animation:bulbs 1.1s steps(2,jump-none) infinite;pointer-events:none}
+@keyframes bulbs{0%{opacity:1}100%{opacity:.35}}
+.roulette-wrap::after{content:"";position:absolute;inset:-18px;border-radius:50%;border:5px solid #c9972b;box-shadow:0 0 0 3px #3a2a0c,0 0 40px rgba(245,196,81,.4),inset 0 0 25px rgba(0,0,0,.8);pointer-events:none}
+.roulette-wrap canvas{box-shadow:0 0 0 4px #7a5a1a,0 0 50px rgba(0,0,0,.9)!important}
+.pointer{color:#ffe08a;filter:drop-shadow(0 0 8px rgba(245,196,81,.9)) drop-shadow(0 3px 4px #000)!important;animation:ptr 1.2s ease-in-out infinite}
+@keyframes ptr{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(5px)}}
+.roulette-center{background:radial-gradient(circle at 35% 30%,#2a3858,#0b1220)!important;border:5px solid #f5c451!important;color:#ffe08a;box-shadow:0 0 22px rgba(245,196,81,.6),inset 0 0 12px #000!important}
+#rouletteTimer,#rouletteTimer2{font-family:'Cinzel',Georgia,serif;font-variant-numeric:tabular-nums;letter-spacing:4px;text-shadow:0 0 20px rgba(245,196,81,.65)}
+.participant{transition:transform .2s,border-color .2s,box-shadow .2s;background:linear-gradient(90deg,rgba(245,196,81,.07),#0a1120 45%)!important}
+.participant:hover{transform:translateX(4px);border-color:rgba(245,196,81,.5)!important;box-shadow:0 0 14px rgba(245,196,81,.15)}
+.num{background:linear-gradient(135deg,#ffe08a,#b8862b)!important;color:#17120a!important}
+
+/* ===== Panel admin / tablas ===== */
+th{font-size:12px;text-transform:uppercase;letter-spacing:1px}
+tbody tr{transition:background .2s}tbody tr:nth-child(even){background:rgba(255,255,255,.025)}tbody tr:hover{background:rgba(245,196,81,.07)}
+h2,h3{letter-spacing:.3px}
+#admin h2{font-family:'Cinzel',Georgia,serif;color:var(--gold2)}
+
+/* ===== Móvil ===== */
+@media(max-width:520px){.wrap{padding:12px!important}.card{padding:14px!important}.brand p{letter-spacing:3px}
+.roulette-wrap{width:min(70vw,430px)!important;height:min(70vw,430px)!important;margin:38px auto!important}
+.roulette-wrap::before{inset:-18px}.roulette-wrap::after{inset:-13px;border-width:4px}
+#mainGames .games{padding:10px!important;gap:8px!important}
+#mainGames .games button.ghost{padding:6px!important}
+#mainGames .games button.ghost>div{font-size:14px!important;line-height:1.3}
+#rouletteGame h2,#rouletteGame2 h2{font-size:19px}
+#rouletteGame button.ghost,#rouletteGame2 button.ghost{flex-shrink:0;white-space:nowrap}
+body{overflow-x:hidden}}
+
+/* ===== Accesibilidad ===== */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}}
+</style>
+<style id="scratch-style">
+.scratch-board{position:relative;width:min(86vw,360px);aspect-ratio:1;margin:18px auto;border-radius:18px;border:3px solid #c9972b;box-shadow:0 0 30px rgba(245,196,81,.3);overflow:hidden;background:#0a1120}
+.scratch-cells{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:4px;padding:4px}
+.scratch-cells div{display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#1b2745,#0e1526);border-radius:10px;font-size:34px;line-height:1.1}
+.scratch-cells small{font-size:13px;font-weight:700;color:var(--gold2)}
+.scratch-cells .win{background:linear-gradient(160deg,#6b5420,#b8862b);box-shadow:inset 0 0 16px #f5c451;animation:pulse .9s infinite alternate}
+#scratchCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;transition:opacity .6s}
+#scratchMsg{border:1px solid rgba(245,196,81,.2);border-left:3px solid #f5c451;text-align:center}
+</style>
+</head>
+<body>
+<div id="chipRain" class="chip-rain"></div>
+<div class="wallet"><span>🪙</span> <b id="topBalance">0</b> fichas</div>
+<div class="wrap">
+<div class="brand"><h1>♛ CASINO EL DORADO 🪙</h1><p>Casino el Dorado</p></div>
+
+<section id="auth" class="card">
+<div class="tabs"><button id="loginTab" class="primary">Entrar</button><button id="regTab" class="ghost">Registrarse</button></div>
+<div id="loginBox"><input id="liUser" placeholder="Usuario"><input id="liPass" type="password" placeholder="Contraseña"><button class="primary" onclick="login()">Entrar al casino</button></div>
+<div id="regBox" class="hidden"><input id="rName" placeholder="Nombre de usuario"><input id="rPass" type="password" placeholder="Contraseña"><button class="primary" onclick="register()">Crear cuenta</button></div>
+<div id="msg" class="notice hidden"></div>
+</section>
+
+<section id="app" class="hidden">
+<div class="card"><div class="profile" onclick="toggleProfile()"><img id="avatar" class="avatar" alt="avatar"><div><strong id="welcome"></strong><div class="muted">ID: <span id="uid"></span></div></div><div style="margin-left:auto">⌄</div></div>
+<div id="profileMenu" class="menu hidden"><button class="ghost" onclick="changePassword()">🔐 Cambiar contraseña</button><button class="ghost" onclick="sendFichas()">🪙 Enviar fichas a otro usuario</button><button class="ghost" onclick="uploadAvatar()">🖼️ Poner imagen de la galería</button><button class="danger" onclick="logout()">↪ Cerrar sesión</button></div></div>
+
+<div id="mainGames" class="grid">
+<div class="card"><div class="muted">Saldo disponible</div><div class="balance"><span id="balance">0</span> fichas</div><button class="primary" onclick="recharge()">＋ Recargar saldo</button><div class="muted" style="font-size:12px;margin-top:8px">La recarga se solicita al administrador por WhatsApp.</div></div>
+<div class="card"><h3 style="margin-top:0">Juegos</h3><div class="games" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:18px">
+<button class="ghost" style="height:190px;font-size:54px" onclick="R1.open()">🎡<div style="font-size:17px;margin-top:8px">Ruleta<br>50 fichas · 1 h</div></button>
+<button class="ghost" style="height:190px;font-size:54px" onclick="R2.open()">⚡<div style="font-size:17px;margin-top:8px">Ruleta Rápida<br>5 fichas · 1 min</div></button>
+<button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="SC.open()">🎟️<div style="font-size:17px;margin-top:6px">Raspa y Gana<br>10 fichas · premios hasta 1000</div></button>
+</div></div></div>
+
+<section id="rouletteGame" class="card hidden">
+<div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="R1.close()">← Volver</button><h2 style="margin:0">🎡 Ruleta El Dorado</h2></div>
+<div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
+<div class="muted">CADA PARTICIPACIÓN</div><div style="font-size:30px;font-weight:800;color:#f5c451">🪙 50 FICHAS</div>
+<div style="margin:18px 0"><div class="muted">Tiempo restante</div><div id="rouletteTimer" style="font-size:32px;font-weight:800;color:#f5c451">01:00:00</div></div>
+<div class="roulette-wrap"><canvas id="rouletteCanvas" width="430" height="430"></canvas><div class="pointer">▼</div><div class="roulette-center">♛</div></div>
+<button id="joinRouletteBtn" class="primary" onclick="R1.join()">🎟️ PARTICIPAR · 50 FICHAS</button>
+<div id="rouletteMessage" class="notice" style="margin-top:12px">La ronda está abierta. ¡Participa con 50 fichas!</div>
+</div>
+<div class="card"><h3 style="margin-top:0">👥 Participantes</h3><div id="rouletteParticipants" style="display:grid;gap:8px"></div></div>
+</section>
+<section id="rouletteGame2" class="card hidden">
+<div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="R2.close()">← Volver</button><h2 style="margin:0">⚡ Ruleta Rápida</h2></div>
+<div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
+<div class="muted">CADA PARTICIPACIÓN</div><div style="font-size:30px;font-weight:800;color:#f5c451">🪙 5 FICHAS</div>
+<div style="margin:18px 0"><div class="muted">Tiempo restante</div><div id="rouletteTimer2" style="font-size:32px;font-weight:800;color:#f5c451">00:01:00</div></div>
+<div class="roulette-wrap"><canvas id="rouletteCanvas2" width="430" height="430"></canvas><div class="pointer">▼</div><div class="roulette-center">♛</div></div>
+<button id="joinRouletteBtn2" class="primary" onclick="R2.join()">🎟️ PARTICIPAR · 5 FICHAS</button>
+<div id="rouletteMessage2" class="notice" style="margin-top:12px">La ronda está abierta. ¡Participa con 5 fichas!</div>
+</div>
+<div class="card"><h3 style="margin-top:0">👥 Participantes</h3><div id="rouletteParticipants2" style="display:grid;gap:8px"></div></div>
+</section>
+
+
+<section id="scratchGame" class="card hidden">
+<div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="SC.close()">← Volver</button><h2 style="margin:0">🎟️ Raspa y Gana</h2></div>
+<div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
+<div class="muted">CADA CARTÓN</div><div style="font-size:30px;font-weight:800;color:#f5c451">🪙 10 FICHAS</div>
+<div class="muted" style="margin-top:8px;font-size:13px">Consigue 3 símbolos iguales y gana ese premio:<br>🍒 10 · 🍋 20 · 🔔 50 · 💎 100 · ⭐ 200 · 👑 1000</div>
+<div class="scratch-board"><div class="scratch-cells" id="scratchBoard"></div><canvas id="scratchCanvas" width="360" height="360"></canvas></div>
+<button id="scratchBuyBtn" class="primary" onclick="SC.buy()">🎟️ COMPRAR CARTÓN · 10 FICHAS</button>
+<button id="scratchAllBtn" class="ghost hidden" onclick="SC.reveal()">✨ Revelar todo</button>
+<div id="scratchMsg" class="notice" style="margin-top:12px">Compra un cartón y rasca con el dedo o el mouse.</div>
+</div></section>
+
+<section id="admin" class="card hidden"><h2>Panel de administración</h2><div class="grid"><div><div class="muted">Usuarios</div><div id="adminUsers" class="balance">0</div></div><div><div class="muted">Fichas en circulación</div><div id="adminBalance" class="balance">0</div></div></div>
+<div id="scratchStats" class="notice" style="margin:12px 0"></div>
+<h3>Gestionar fichas</h3><select id="adminTarget"></select><input id="adminAmount" type="number" min="1" placeholder="Cantidad de fichas"><div class="grid"><button class="primary" onclick="adminAdjust(1)">＋ Sumar fichas</button><button class="danger" onclick="adminAdjust(-1)">− Restar fichas</button></div>
+<h3>Registro de movimientos</h3><div style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody id="ledger"></tbody></table></div></section>
+</section></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ================================================================
+   CONFIGURACIÓN FIREBASE
+   Copia aquí los datos de tu proyecto:
+   Firebase console → ⚙ Configuración del proyecto → Tus apps → Web app
+   ================================================================ */
+const firebaseConfig = {
+  apiKey: "PEGA_AQUI_TU_API_KEY",
+  authDomain: "PEGA_AQUI.firebaseapp.com",
+  projectId: "PEGA_AQUI",
+  storageBucket: "PEGA_AQUI.appspot.com",
+  messagingSenderId: "000000000000",
+  appId: "1:000000000000:web:PEGA_AQUI"
+};
+
+/* Fichas con las que empieza cada cuenta nueva (0 si prefieres que solo el admin recargue) */
+const SALDO_INICIAL = 100;
+const WA = "https://wa.me/58097787";
+/* Ms que deben pasar entre el fin de una ronda y la creación de la siguiente (deja que todos vean el ganador) */
+const NEW_ROUND_DELAY = 12000;
+
+const CONFIG_FALTA = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes("PEGA_AQUI") || firebaseConfig.projectId.includes("PEGA_AQUI");
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let current = null;
+let pendingReveal = null;
+let userUnsub = null;
+let adminUnsubs = [];
+let usersCache = [], ledgerCache = [], statsCache = null;
+
+/* ---------------- utilidades ---------------- */
+function normName(n){ return String(n||"").trim().toLowerCase().replace(/\//g,"_"); }
+function showMsg(t){ const e=document.getElementById("msg"); e.textContent=t; e.classList.remove("hidden"); }
+function escapeHtml(v){ return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+
+async function hashPass(p){
+  if(window.crypto && crypto.subtle){
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("casino:"+p));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  }
+  let h=5381;
+  for(let i=0;i<p.length;i++) h=((h<<5)+h+p.charCodeAt(i))>>>0;
+  return "weak:"+h;
+}
+
+function defaultAvatar(){ return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" rx="50" fill="#263552"/><text x="50" y="62" text-anchor="middle" font-size="45" fill="#f5c451">♛</text></svg>`); }
+
+function shrinkImage(src,size){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement("canvas");
+      const k=Math.min(size/img.width,size/img.height,1);
+      c.width=Math.max(1,Math.round(img.width*k));
+      c.height=Math.max(1,Math.round(img.height*k));
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      res(c.toDataURL("image/jpeg",.85));
+    };
+    img.onerror=()=>res(src);
+    img.src=src;
+  });
+}
+
+/* ---------------- saldo visible ---------------- */
+function updateBalanceUI(){
+  if(!current) return;
+  const shown = current.balance - (pendingReveal ? pendingReveal.prize : 0);
+  const b=document.getElementById("balance"), t=document.getElementById("topBalance");
+  if(b) b.textContent = shown;
+  if(t) t.textContent = shown;
+}
+
+function watchUser(){
+  if(userUnsub){ userUnsub(); userUnsub=null; }
+  if(!current) return;
+  userUnsub = db.collection("users").doc(current.id).onSnapshot(s=>{
+    if(!s.exists) return;
+    current = s.data();
+    updateBalanceUI();
+  }, ()=>{});
+}
+
+/* ---------------- sesión ---------------- */
+async function register(){
+  const raw = document.getElementById("rName").value.trim();
+  const p = document.getElementById("rPass").value;
+  if(!raw || !p) return showMsg("Completa usuario y contraseña.");
+  const docId = normName(raw);
+  if(!docId || docId==="." || docId==="..") return showMsg("Nombre de usuario no válido.");
+  if(docId.length>24) return showMsg("El usuario debe tener máximo 24 caracteres.");
+  if(CONFIG_FALTA) return showMsg("El juego no está conectado a Firebase todavía. Pega tu configuración en index.html (ver README).");
+  const isAdmin = docId==="admin";
+  const u = { id:docId, name:isAdmin?"admin":raw, pass:await hashPass(p), balance:isAdmin?0:SALDO_INICIAL, avatar:"", admin:isAdmin, created:Date.now() };
+  try{
+    await db.runTransaction(async t=>{
+      const ref = db.collection("users").doc(docId);
+      const s = await t.get(ref);
+      if(s.exists) throw new Error("Ese usuario ya existe.");
+      t.set(ref, u);
+    });
+  }catch(e){ return showMsg(e.message||"No se pudo crear la cuenta."); }
+  localStorage.setItem("casino_uid", docId);
+  current = u;
+  await enter();
+  showMsg("Cuenta creada correctamente.");
+}
+
+async function login(){
+  const docId = normName(liUser.value);
+  const p = liPass.value;
+  if(!docId || docId==="." || docId==="..") return showMsg("Usuario o contraseña incorrectos.");
+  if(CONFIG_FALTA) return showMsg("El juego no está conectado a Firebase todavía. Pega tu configuración en index.html (ver README).");
+  try{
+    const s = await db.collection("users").doc(docId).get();
+    if(!s.exists || s.data().pass !== await hashPass(p)) return showMsg("Usuario o contraseña incorrectos.");
+    current = s.data();
+    localStorage.setItem("casino_uid", docId);
+    await enter();
+  }catch(e){ showMsg("No se pudo conectar: "+e.message); }
+}
+
+async function enter(){
+  startPortalRain();
+  document.getElementById("auth").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("profileMenu").classList.add("hidden");
+  const isAdmin = !!(current && current.admin);
+  document.getElementById("welcome").textContent = isAdmin ? "Administrador" : current.name;
+  document.getElementById("uid").textContent = current.id;
+  document.getElementById("avatar").src = current.avatar || defaultAvatar();
+  if(isAdmin){
+    document.getElementById("admin").classList.remove("hidden");
+    startAdminWatch();
+  }else{
+    document.getElementById("admin").classList.add("hidden");
+    stopAdminWatch();
+  }
+  updateBalanceUI();
+  watchUser();
+  R1.refresh(); R2.refresh();
+}
+
+function logout(){
+  stopPortalRain();
+  if(userUnsub){ userUnsub(); userUnsub=null; }
+  stopAdminWatch();
+  localStorage.removeItem("casino_uid");
+  current = null; pendingReveal = null;
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("auth").classList.remove("hidden");
+  liPass.value = "";
+  showMsg("Sesión cerrada.");
+}
+
+function toggleProfile(){ document.getElementById("profileMenu").classList.toggle("hidden"); }
+
+async function changePassword(){
+  const p = prompt("Nueva contraseña:");
+  if(!p) return;
+  try{
+    const pass = await hashPass(p);
+    await db.collection("users").doc(current.id).update({pass});
+    current.pass = pass;
+    alert("Contraseña cambiada.");
+  }catch(e){ alert("Error: "+e.message); }
+}
+
+async function sendFichas(){
+  const target = prompt("ID del usuario destinatario (ej: carlos):");
+  if(target===null) return;
+  const amount = Number(prompt("Cantidad de fichas:"));
+  const toId = normName(target);
+  if(!toId || !Number.isFinite(amount) || amount<=0) return alert("Datos no válidos.");
+  if(toId===current.id) return alert("No puedes enviarte fichas a ti mismo.");
+  try{
+    await db.runTransaction(async t=>{
+      const meRef = db.collection("users").doc(current.id), toRef = db.collection("users").doc(toId);
+      const [me,to] = await Promise.all([t.get(meRef), t.get(toRef)]);
+      if(!to.exists) throw new Error("No existe ningún usuario con ese ID.");
+      if(me.data().balance < amount) throw new Error("Saldo insuficiente.");
+      t.update(meRef,{balance:me.data().balance-amount});
+      t.update(toRef,{balance:to.data().balance+amount});
+      t.set(db.collection("ledger").doc(),{date:new Date().toLocaleString(),user:me.data().name,type:"Transferencia",amount,detail:`Envío a ${to.data().name} (${to.id})`,ts:Date.now()});
+    });
+    alert("Transferencia realizada.");
+  }catch(e){ alert(e.message||"Error en la transferencia."); }
+}
+
+function uploadAvatar(){
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "image/*";
+  input.onchange = async ()=>{
+    const f = input.files[0]; if(!f) return;
+    const r = new FileReader();
+    r.onload = async ()=>{
+      try{
+        const dataUrl = await shrinkImage(r.result, 128);
+        await db.collection("users").doc(current.id).update({avatar:dataUrl});
+        current.avatar = dataUrl;
+        document.getElementById("avatar").src = dataUrl;
+      }catch(e){ alert("No se pudo subir la imagen: "+e.message); }
+    };
+    r.readAsDataURL(f);
+  };
+  input.click();
+}
+
+function recharge(){ window.open(WA+"?text="+encodeURIComponent("Hola, quiero solicitar una recarga de fichas. Mi ID es "+current.id),"_blank"); }
+
+/* ---------------- panel de administración ---------------- */
+function startAdminWatch(){
+  stopAdminWatch();
+  adminUnsubs.push(db.collection("users").onSnapshot(s=>{ usersCache=s.docs.map(d=>d.data()); renderAdmin(); }, ()=>{}));
+  adminUnsubs.push(db.collection("ledger").orderBy("ts","desc").limit(150).onSnapshot(s=>{ ledgerCache=s.docs.map(d=>d.data()); renderAdmin(); }, ()=>{}));
+  adminUnsubs.push(db.collection("scratchStats").onSnapshot(s=>{ statsCache=s.exists?s.data():null; renderAdmin(); }, ()=>{}));
+}
+function stopAdminWatch(){ adminUnsubs.forEach(f=>{ try{f()}catch(e){} }); adminUnsubs=[]; }
+
+function renderAdmin(){
+  if(!current || !current.admin) return;
+  const pl = usersCache.filter(u=>!u.admin);
+  document.getElementById("adminUsers").textContent = pl.length;
+  document.getElementById("adminBalance").textContent = pl.reduce((s,u)=>s+(u.balance||0),0);
+  document.getElementById("adminTarget").innerHTML = pl.map(u=>`<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} — ${escapeHtml(u.id)} — ${u.balance} fichas</option>`).join("");
+  renderScratchStats();
+  document.getElementById("ledger").innerHTML = ledgerDataHtml();
+}
+
+function renderScratchStats(){
+  const e = document.getElementById("scratchStats"); if(!e) return;
+  const s = statsCache || {cards:0,bets:0,paid:0};
+  const profit = s.bets - s.paid, pct = s.bets ? (profit/s.bets*100).toFixed(1) : "0.0";
+  e.innerHTML = `🎟️ Raspa y Gana: ${s.cards} cartones · apostado ${s.bets} · pagado ${s.paid} · ganancia de la casa <b class="${profit>=0?"ok":"bad"}">${profit} (${pct}%)</b> · fondo de premios disponible: ${Math.max(0,Math.floor(s.bets*.9)-s.paid)} · mínimo garantizado 10%`;
+}
+
+async function adminAdjust(sign){
+  const toId = adminTarget.value, a = Number(adminAmount.value);
+  if(!toId || !Number.isFinite(a) || a<=0) return alert("Selecciona un usuario y una cantidad válida.");
+  try{
+    await db.runTransaction(async t=>{
+      const ref = db.collection("users").doc(toId);
+      const s = await t.get(ref);
+      if(!s.exists) throw new Error("Usuario no encontrado.");
+      const bal = s.data().balance||0;
+      if(sign<0 && bal<a) throw new Error("El usuario no tiene suficientes fichas.");
+      t.update(ref,{balance:bal+sign*a});
+      t.set(db.collection("ledger").doc(),{date:new Date().toLocaleString(),user:s.data().name,type:sign>0?"Recarga":"Retiro",amount:sign*a,detail:"Ajuste del administrador",ts:Date.now()});
+    });
+    adminAmount.value = "";
+  }catch(e){ alert(e.message||"Error al ajustar fichas."); }
+}
+
+function ledgerDataHtml(){
+  return ledgerCache.map(x=>`<tr><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.user)}</td><td>${escapeHtml(x.type)}</td><td class="${x.amount>=0?"ok":"bad"}">${x.amount>0?"+":""}${x.amount}</td><td>${escapeHtml(x.detail)}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="muted">Sin movimientos.</td></tr>`;
+}
+
+/* ================================================================
+   RULETA COMPARTIDA (Firestore)
+   Cada instancia (R1/R2) tiene su propio documento de ronda.
+   Todos los navegadores ven la misma ronda en tiempo real.
+   ================================================================ */
+function makeRoulette(cfg){
+  const sfx = cfg.sfx, el = n=>document.getElementById(n+sfx);
+  let data=null, timerInt=null, rotation=0, busy=false, settling=false, creating=false, unsub=null;
+  const roundRef = db.collection("rounds").doc(cfg.doc);
+  const msg = (t,html)=>{ const m=el("rouletteMessage"); if(!m) return; if(html) m.innerHTML=t; else m.textContent=t; };
+  const isOpen = ()=>{ const g=el("rouletteGame"); return g && !g.classList.contains("hidden"); };
+  const freshRound = ()=>{ const now=Date.now(); return {start:now,end:now+cfg.duration,participants:[],finished:false,winnerId:null,winnerName:null,winnerIndex:-1,prize:0,finishedAt:0}; };
+  const norm = d=>({ start:d.start||Date.now(), end:d.end||0, participants:d.participants||[], finished:!!d.finished, winnerId:d.winnerId||null, winnerName:d.winnerName||null, winnerIndex:typeof d.winnerIndex==="number"?d.winnerIndex:-1, prize:d.prize||0, finishedAt:d.finishedAt||0 });
+
+  function subscribe(){
+    if(unsub) return;
+    unsub = roundRef.onSnapshot(snap=>{
+      if(!snap.exists){ tryNewRound(); return; }
+      const prev = data;
+      data = norm(snap.data());
+      draw(); renderParticipants();
+      if(isOpen()) updateTimer();
+      if(!prev) return;
+      if(!prev.finished && data.finished){
+        if(data.winnerIndex>=0 && data.participants.length){
+          busy = true;
+          spinTo(data.winnerIndex, data.participants.length, announce);
+        }else{
+          msg("No hubo participantes en esta ronda.");
+          busy = true;
+          setTimeout(()=>{ busy=false; }, 3000);
+        }
+        return;
+      }
+      if(prev.finished && !data.finished){
+        rotation = 0; resetWheel();
+        if(!busy && isOpen()) msg(`🎡 Nueva ronda abierta. ¡Participa con ${cfg.cost} fichas!`);
+      }
+    }, err=>console.warn("Ronda "+cfg.label+":", err.message));
+  }
+
+  /* Termina la ronda vencida: transacción, solo gana un cliente */
+  async function settleRound(){
+    if(settling || !data) return;
+    settling = true;
+    try{
+      await db.runTransaction(async t=>{
+        const snap = await t.get(roundRef);
+        if(!snap.exists) return;
+        const d = snap.data();
+        if(d.finished || Date.now() < d.end) return;
+        const ps = d.participants || [];
+        const date = new Date().toLocaleString(), ts = Date.now();
+        if(!ps.length){
+          t.update(roundRef,{finished:true,finishedAt:ts,winnerId:null,winnerName:null,winnerIndex:-1,prize:0});
+          t.set(db.collection("ledger").doc(),{date,user:"SISTEMA",type:cfg.label,amount:0,detail:"Ronda finalizada sin participantes.",ts});
+          return;
+        }
+        const wi = Math.floor(Math.random()*ps.length), winner = ps[wi];
+        const total = ps.length*cfg.cost;
+        const prize = Math.floor(total*.90), adminPart = Math.floor(total*.05), jackpot = total-prize-adminPart;
+        const wRef = db.collection("users").doc(winner.id);
+        const wSnap = await t.get(wRef);
+        t.update(roundRef,{finished:true,finishedAt:ts,winnerId:winner.id,winnerName:winner.name,winnerIndex:wi,prize});
+        if(wSnap.exists) t.update(wRef,{balance:(wSnap.data().balance||0)+prize});
+        t.set(db.collection("ledger").doc(),{date,user:winner.name,type:cfg.label+" - Premio",amount:prize,detail:`Ganador de la ronda. Participantes: ${ps.length}. Premio: ${prize} fichas.`,ts});
+        t.set(db.collection("ledger").doc(),{date,user:"SISTEMA",type:cfg.label,amount:0,detail:`Fondo administración: ${adminPart} fichas. Fondo acumulado: ${jackpot} fichas.`,ts});
+      });
+    }catch(e){ console.warn(e); }
+    finally{ settling=false; }
+  }
+
+  /* Abre una ronda nueva (solo si la anterior ya lleva NEW_ROUND_DELAY terminada) */
+  async function tryNewRound(){
+    if(creating) return;
+    creating = true;
+    try{
+      await db.runTransaction(async t=>{
+        const snap = await t.get(roundRef);
+        if(!snap.exists){ t.set(roundRef, freshRound()); return; }
+        const d = snap.data();
+        if(d.finished && Date.now()-(d.finishedAt||0) >= NEW_ROUND_DELAY) t.update(roundRef, freshRound());
+      });
+    }catch(e){ console.warn(e); }
+    finally{ creating=false; }
+  }
+
+  function join(){
+    if(!current) return;
+    if(current.admin) return alert("La cuenta de administración no puede participar.");
+    if(busy) return alert("La ronda está terminando. Espera a que abra la siguiente.");
+    if(!data) return alert("La ronda se está cargando, intenta de nuevo en un momento.");
+    if(data.finished || Date.now()>=data.end) return alert("La ronda está terminando. Espera la siguiente.");
+    if(data.participants.some(p=>p.id===current.id)) return alert("Ya estás participando en esta ronda.");
+    if(current.balance<cfg.cost) return alert(`No tienes suficientes fichas. Necesitas ${cfg.cost} fichas.`);
+    return db.runTransaction(async t=>{
+      const uRef = db.collection("users").doc(current.id);
+      const [uSnap,rSnap] = await Promise.all([t.get(uRef), t.get(roundRef)]);
+      if(!uSnap.exists) throw new Error("Sesión expirada. Cierra y vuelve a entrar.");
+      const u = uSnap.data();
+      const d = rSnap.data();
+      if(!d || d.finished || Date.now()>=d.end) throw new Error("La ronda está terminando. Espera la siguiente.");
+      const ps = d.participants || [];
+      if(ps.some(p=>p.id===current.id)) throw new Error("Ya estás participando en esta ronda.");
+      if((u.balance||0) < cfg.cost) throw new Error(`No tienes suficientes fichas. Necesitas ${cfg.cost} fichas.`);
+      t.update(uRef,{balance:u.balance-cfg.cost});
+      t.update(roundRef,{participants:[...ps,{id:current.id,name:current.name}]});
+      t.set(db.collection("ledger").doc(),{date:new Date().toLocaleString(),user:current.name,type:cfg.label,amount:-cfg.cost,detail:`Participación en ${cfg.label.toLowerCase()}`,ts:Date.now()});
+    }).then(()=>{
+      msg("🎡 ¡Ya estás dentro de la ruleta!");
+      if(isOpen()) updateTimer();
+    }).catch(e=>alert(e.message||"No se pudo participar."));
+  }
+
+  function draw(){
+    const canvas = el("rouletteCanvas"); if(!canvas) return;
+    const ctx = canvas.getContext("2d"), size = canvas.width, cx = size/2, cy = size/2, radius = size/2-5;
+    ctx.clearRect(0,0,size,size);
+    const ps = (data && data.participants) || [];
+    if(!ps.length){
+      ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.fillStyle="#171f32"; ctx.fill();
+      ctx.strokeStyle="#f5c451"; ctx.lineWidth=4; ctx.stroke();
+      ctx.fillStyle="#f5c451"; ctx.font="bold 22px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText("ESPERANDO",cx,cy-15); ctx.fillText("PARTICIPANTES",cx,cy+18);
+      return;
+    }
+    const slice = Math.PI*2/ps.length, colors = ["#c0392b","#8e44ad","#2980b9","#16a085","#d35400","#2c3e50","#7f8c8d","#27ae60","#34495e","#9b59b6"];
+    ps.forEach((p,i)=>{
+      const start = -Math.PI/2+i*slice, end = start+slice;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,radius,start,end); ctx.closePath();
+      ctx.fillStyle = colors[i%colors.length]; ctx.fill();
+      ctx.strokeStyle="#f5c451"; ctx.lineWidth=2; ctx.stroke();
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(start+slice/2);
+      ctx.textAlign="right"; ctx.textBaseline="middle"; ctx.fillStyle="#fff";
+      let fs=17; if(p.name.length>12) fs=13; if(p.name.length>18) fs=10;
+      ctx.font=`bold ${fs}px system-ui`;
+      const name = p.name.length>22 ? p.name.slice(0,21)+"…" : p.name;
+      ctx.shadowColor="#000"; ctx.shadowBlur=4; ctx.fillText(name,radius-14,0);
+      ctx.restore();
+    });
+    ctx.beginPath(); ctx.arc(cx,cy,radius,0,Math.PI*2); ctx.strokeStyle="#f5c451"; ctx.lineWidth=5; ctx.stroke();
+  }
+
+  function renderParticipants(){
+    const box = el("rouletteParticipants"); if(!box) return;
+    const ps = (data && data.participants) || [];
+    if(!ps.length){ box.innerHTML = '<div class="muted">No hay participantes todavía.</div>'; return; }
+    box.innerHTML = ps.map((p,i)=>`<div class="participant"><div class="num">${i+1}</div><div><strong>${escapeHtml(p.name)}</strong><div class="muted" style="font-size:12px">🪙 ${cfg.cost} fichas</div></div></div>`).join("");
+  }
+
+  function updateTimer(){
+    if(timerInt){ clearInterval(timerInt); timerInt=null; }
+    const t = el("rouletteTimer"); if(!t || !data) return;
+    const tick = ()=>{
+      if(!data) return;
+      const rem = data.end - Date.now();
+      if(rem<=0){
+        t.textContent = "00:00:00";
+        if(!data.finished && !busy && !settling) settleRound();
+        if(timerInt){ clearInterval(timerInt); timerInt=null; }
+        return;
+      }
+      const s = Math.floor(rem/1000), h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+      t.textContent = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+    };
+    tick();
+    if(!timerInt && data && data.end-Date.now()>0) timerInt = setInterval(tick,1000);
+  }
+
+  function spinTo(wi,count,callback){
+    const canvas = el("rouletteCanvas"); if(!canvas) return callback();
+    const slice = 360/count, target = -(wi*slice+slice/2), extra = 360*6;
+    const finalRotation = rotation+extra+target, startRotation = rotation, duration = 5000, startTime = performance.now();
+    function animate(now){
+      const progress = Math.min(1,(now-startTime)/duration), eased = 1-Math.pow(1-progress,3);
+      rotation = startRotation+(finalRotation-startRotation)*eased;
+      canvas.style.transform = `rotate(${rotation}deg)`;
+      if(progress<1) requestAnimationFrame(animate);
+      else { rotation = finalRotation; callback(); }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function resetWheel(){ rotation=0; const c=el("rouletteCanvas"); if(c) c.style.transform="rotate(0deg)"; }
+
+  function announce(){
+    triggerWinRain();
+    if(data && data.winnerName){
+      msg(`🏆 <strong>¡GANADOR!</strong><br>🎉 ${escapeHtml(data.winnerName)}<br>🪙 Premio: ${data.prize} fichas`, true);
+    }
+    setTimeout(()=>{
+      busy = false;
+      if(data && !data.finished){ resetWheel(); if(isOpen()) msg(`🎡 Nueva ronda abierta. ¡Participa con ${cfg.cost} fichas!`); }
+      tryNewRound();
+    }, 7000);
+  }
+
+  function open(){
+    subscribe();
+    el("rouletteGame").classList.remove("hidden");
+    document.getElementById("mainGames").classList.add("hidden");
+    draw(); renderParticipants();
+    if(!data) msg("⏳ Cargando la ronda…");
+    else if(data.finished) msg("La ronda anterior terminó. Preparando la siguiente…");
+    updateTimer();
+    window.scrollTo(0,0);
+  }
+  function close(){
+    el("rouletteGame").classList.add("hidden");
+    document.getElementById("mainGames").classList.remove("hidden");
+    if(timerInt){ clearInterval(timerInt); timerInt=null; }
+  }
+  function refresh(){ if(isOpen()){ draw(); renderParticipants(); updateTimer(); } }
+
+  function watch(){
+    if(!data) return;
+    if(!data.finished && Date.now()>=data.end && !busy && !settling) settleRound();
+    else if(data.finished && !busy && !creating && Date.now()-(data.finishedAt||0)>=NEW_ROUND_DELAY) tryNewRound();
+  }
+
+  return {open,close,join,refresh,watch,subscribe};
+}
+
+const R1 = makeRoulette({sfx:"", doc:"r1", cost:50, duration:60*60*1000, label:"Ruleta"});
+const R2 = makeRoulette({sfx:"2", doc:"r2", cost:5, duration:60*1000, label:"Ruleta Rápida"});
+setInterval(()=>{ R1.watch(); R2.watch(); }, 1000);
+
+/* ================================================================
+   RASPA Y GANA
+   Tabla de premios [fichas, peso sobre 1000]. Retorno esperado:
+   (10·190+20·80+50·30+100·10+200·5+1000·2)/1000 = 9 fichas por cartón de 10
+   ================================================================ */
+const SCRATCH_COST = 10;
+const SCRATCH_TABLE = [[0,683],[10,190],[20,80],[50,30],[100,10],[200,5],[1000,2]];
+const SCRATCH_SYMS = [10,20,50,100,200,1000];
+const SCRATCH_ICON = {10:"🍒",20:"🍋",50:"🔔",100:"💎",200:"⭐",1000:"👑"};
+
+const SC = (function(){
+  const $ = n=>document.getElementById(n);
+  let state=null, drawing=false, last=null;
+  const msg = t=>{ $("scratchMsg").innerHTML = t; };
+  function rInt(n){ const a=new Uint32Array(1), lim=Math.floor(4294967296/n)*n; do{crypto.getRandomValues(a)}while(a[0]>=lim); return a[0]%n; }
+  function pick(){ let r=rInt(1000); for(const [p,w] of SCRATCH_TABLE){ if(r<w) return p; r-=w; } return 0; }
+  function board(prize){
+    const cells=[], cnt={}, add=x=>{ cells.push(x); cnt[x]=(cnt[x]||0)+1; };
+    if(prize>0) for(let i=0;i<3;i++) add(prize);
+    while(cells.length<9){ const x=SCRATCH_SYMS[rInt(SCRATCH_SYMS.length)]; if(x!==prize && (cnt[x]||0)<2) add(x); }
+    for(let i=8;i>0;i--){ const j=rInt(i+1); [cells[i],cells[j]]=[cells[j],cells[i]]; }
+    return cells;
+  }
+  function cover(){
+    const c=$("scratchCanvas"), x=c.getContext("2d");
+    x.globalCompositeOperation="source-over"; x.clearRect(0,0,c.width,c.height);
+    const g=x.createLinearGradient(0,0,c.width,c.height);
+    g.addColorStop(0,"#dfe3ec"); g.addColorStop(.5,"#9aa3b5"); g.addColorStop(1,"#d3d8e2");
+    x.fillStyle=g; x.fillRect(0,0,c.width,c.height);
+    x.fillStyle="rgba(60,50,20,.35)"; x.font="bold 26px system-ui"; x.textAlign="center"; x.textBaseline="middle";
+    x.fillText("♛ RASCA AQUÍ ♛",c.width/2,c.height/2);
+    c.style.opacity=1; c.style.pointerEvents="none";
+  }
+  function placeholder(){ $("scratchBoard").innerHTML = Array(9).fill("<div>❓</div>").join(""); }
+  function open(){
+    $("scratchGame").classList.remove("hidden");
+    document.getElementById("mainGames").classList.add("hidden");
+    if(!state){ placeholder(); cover(); }
+    window.scrollTo(0,0);
+  }
+  function close(){
+    if(state && !state.revealed) reveal();
+    $("scratchGame").classList.add("hidden");
+    document.getElementById("mainGames").classList.remove("hidden");
+  }
+
+  async function buy(){
+    if(!current || current.admin) return alert("La cuenta de administración no puede jugar.");
+    if(state && !state.revealed) reveal();
+    if(CONFIG_FALTA) return alert("El juego no está conectado a Firebase todavía. Pega tu configuración en index.html (ver README).");
+    if(current.balance < SCRATCH_COST) return alert(`No tienes suficientes fichas. Necesitas ${SCRATCH_COST} fichas.`);
+    let res;
+    try{
+      res = await db.runTransaction(async t=>{
+        const uRef = db.collection("users").doc(current.id), sRef = db.collection("scratchStats");
+        const [uSnap,sSnap] = await Promise.all([t.get(uRef), t.get(sRef)]);
+        const u = uSnap.data();
+        if(!u || (u.balance||0) < SCRATCH_COST) throw new Error("No tienes suficientes fichas.");
+        const st = sSnap.exists ? sSnap.data() : {cards:0,bets:0,paid:0};
+        const budget = Math.max(0, Math.floor(((st.bets||0)+SCRATCH_COST)*.9) - (st.paid||0));
+        let prize = pick();
+        if(prize > budget) prize = Math.max(0, ...SCRATCH_SYMS.filter(x=>x<=budget));
+        const cells = board(prize);
+        const newBal = u.balance - SCRATCH_COST + prize;
+        const date = new Date().toLocaleString(), ts = Date.now();
+        t.update(uRef,{balance:newBal});
+        t.set(sRef,{cards:(st.cards||0)+1,bets:(st.bets||0)+SCRATCH_COST,paid:(st.paid||0)+prize},{merge:true});
+        t.set(db.collection("ledger").doc(),{date,user:u.name,type:"Raspa y Gana",amount:-SCRATCH_COST,detail:"Compra de cartón",ts});
+        if(prize>0) t.set(db.collection("ledger").doc(),{date,user:u.name,type:"Raspa y Gana - Premio",amount:prize,detail:`Cartón premiado: ${prize} fichas`,ts:ts+1});
+        return {prize,cells,newBal};
+      });
+    }catch(e){ return alert(e.message||"No se pudo comprar el cartón."); }
+
+    state = {prize:res.prize, cells:res.cells, revealed:false};
+    pendingReveal = {prize:res.prize};
+    current.balance = res.newBal;
+    $("scratchBoard").innerHTML = state.cells.map(x=>`<div data-v="${x}">${SCRATCH_ICON[x]}<small>${x}</small></div>`).join("");
+    cover();
+    $("scratchCanvas").style.pointerEvents = "auto";
+    $("scratchAllBtn").classList.remove("hidden");
+    updateBalanceUI();
+    msg("🎟️ ¡Rasca el cartón!");
+  }
+
+  function scratchAt(e){
+    const c=$("scratchCanvas"), r=c.getBoundingClientRect(), k=c.width/r.width;
+    const x=(e.clientX-r.left)*k, y=(e.clientY-r.top)*k, ctx=c.getContext("2d");
+    ctx.globalCompositeOperation="destination-out"; ctx.lineWidth=50; ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.beginPath(); ctx.moveTo(last?last.x:x, last?last.y:y); ctx.lineTo(x,y+.01); ctx.stroke(); last={x,y};
+  }
+  function cleared(){
+    const c=$("scratchCanvas"), d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;
+    let t=0, n=0;
+    for(let i=3;i<d.length;i+=64){ n++; if(d[i]<128) t++; }
+    return t/n;
+  }
+  function reveal(){
+    if(!state || state.revealed) return;
+    state.revealed = true;
+    const c=$("scratchCanvas");
+    c.style.opacity=0; c.style.pointerEvents="none";
+    $("scratchAllBtn").classList.add("hidden");
+    pendingReveal = null;
+    if(state.prize>0){
+      document.querySelectorAll("#scratchBoard div").forEach(d=>{ if(Number(d.dataset.v)===state.prize) d.classList.add("win"); });
+      msg(`🏆 <strong>¡GANASTE!</strong><br>🪙 Premio: ${state.prize} fichas`);
+      triggerWinRain();
+    }else{
+      msg("😕 Sin premio esta vez. ¡Prueba con otro cartón!");
+    }
+    updateBalanceUI();
+  }
+  const cv=$("scratchCanvas");
+  cv.addEventListener("pointerdown",e=>{ if(!state||state.revealed) return; drawing=true; last=null; cv.setPointerCapture(e.pointerId); scratchAt(e); });
+  cv.addEventListener("pointermove",e=>{ if(drawing) scratchAt(e); });
+  const end=()=>{ if(!drawing) return; drawing=false; last=null; if(cleared()>.55) reveal(); };
+  cv.addEventListener("pointerup",end);
+  cv.addEventListener("pointercancel",end);
+  return {open,close,buy,reveal};
+})();
+
+/* ---------------- pestañas de acceso ---------------- */
+loginTab.onclick = ()=>{ loginBox.classList.remove("hidden"); regBox.classList.add("hidden"); loginTab.className="primary"; regTab.className="ghost"; };
+regTab.onclick = ()=>{ regBox.classList.remove("hidden"); loginBox.classList.add("hidden"); regTab.className="primary"; loginTab.className="ghost"; };
+
+/* ---------------- lluvia de fichas ---------------- */
+function startPortalRain(){
+  const box = document.getElementById("chipRain");
+  if(!box) return;
+  box.style.display = "block";
+  box.innerHTML = "";
+  for(let i=0;i<20;i++){
+    const c = document.createElement("div");
+    c.className = "chip"; c.textContent = "🪙";
+    c.style.left = Math.random()*100+"vw";
+    c.style.animationDuration = (4+Math.random()*4)+"s";
+    box.appendChild(c);
+  }
+}
+function stopPortalRain(){
+  const box = document.getElementById("chipRain");
+  if(box){ box.style.display="none"; box.innerHTML=""; }
+}
+function triggerWinRain(){
+  const box = document.getElementById("chipRain");
+  if(!box) return;
+  box.style.display = "block";
+  box.innerHTML = "";
+  for(let i=0;i<80;i++){
+    const c = document.createElement("div");
+    c.className = "chip"; c.textContent = "🪙";
+    c.style.left = Math.random()*100+"vw";
+    c.style.animationDuration = (2+Math.random()*2)+"s";
+    box.appendChild(c);
+  }
+  setTimeout(()=>{ if(current) startPortalRain(); else stopPortalRain(); }, 5000);
+}
+
+/* ---------------- arranque ---------------- */
+R1.subscribe();
+R2.subscribe();
+
+(async function restoreSession(){
+  const sid = localStorage.getItem("casino_uid");
+  if(sid){
+    try{
+      const s = await db.collection("users").doc(sid).get();
+      if(s.exists){ current = s.data(); await enter(); }
+    }catch(e){ console.warn("Sesión:", e.message); }
+  }
+  if(CONFIG_FALTA) showMsg("⚠️ Falta conectar Firebase: pega tu firebaseConfig en index.html (sigue el README).");
+})();
+</script>
+</body>
+</html>
