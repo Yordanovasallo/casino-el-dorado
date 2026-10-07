@@ -317,7 +317,7 @@ function makeRoulette(cfg){
   const roundPath = "rounds?select=*&id=eq." + encodeURIComponent(cfg.doc);
   const msg = (t,html)=>{ const m=el("rouletteMessage"); if(!m) return; if(html) m.innerHTML=t; else m.textContent=t; };
   const isOpen = ()=>{ const g=el("rouletteGame"); return g && !g.classList.contains("hidden"); };
-  const norm = d=>({ id:d.id, start:Number(d.start)||Date.now(), end:Number(d.end)||0, participants:d.participants||[], finished:!!d.finished, winnerId:d.winnerId||null, winnerName:d.winnerName||null, winnerIndex:Number.isFinite(d.winnerIndex)?d.winnerIndex:-1, prize:Number(d.prize)||0, finishedAt:Number(d.finishedAt)||0 });
+  const norm = d=>({ id:d.id, start:Number(d.start)||Date.now(), end:Number(d.ends)||0, participants:d.participants||[], finished:!!d.finished, winnerId:d.winner_id||null, winnerName:d.winner_name||null, winnerIndex:Number.isFinite(d.winner_index)?d.winner_index:-1, prize:Number(d.prize)||0, finishedAt:Number(d.finished_at)||0 });
 
   async function ensure(){
     try{
