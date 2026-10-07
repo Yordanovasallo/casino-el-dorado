@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Diagnóstico de conexión — Casino El Dorado</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;background:#0b1220;color:#f5f7fb;margin:0;padding:20px;max-width:720px;margin:auto}
+h1{font-size:22px}
+button{padding:16px;font-size:18px;width:100%;border:0;border-radius:12px;background:linear-gradient(135deg,#f5c451,#d89d22);color:#17120a;font-weight:800;cursor:pointer;margin:14px 0}
+.row{padding:13px 14px;border-radius:10px;margin:8px 0;font-size:16px;line-height:1.35}
+.wait{background:#1b2745;color:#9aa7bd}
+.ok{background:#14532d}
+.bad{background:#7a1420}
+small{color:#9aa7bd}
+.summary{margin-top:16px;padding:14px;border-radius:10px;background:#17223a;font-size:15px}
+</style>
+</head>
+<body>
+<h1>🔌 Diagnóstico de conexión</h1>
+<p><small>Esto comprueba a qué servidores puede llegar tu red. Pulsa <b>Probar</b> y espera unos segundos.</small></p>
+<button onclick="run()">▶ Probar ahora</button>
+<div id="out"></div>
+<div id="summary" class="summary" style="display:none"></div>
+
+<script>
+const out = document.getElementById("out");
+const summary = document.getElementById("summary");
+const KEY = "AIzaSyCygL5_1Gsw_LPOy5w2dgQCI8N_nAyey9o";
+
+const tests = [
+  ["Google – API pública (base de Firebase)", "https://www.googleapis.com/discovery/v1/apis?fields=items/name", "google"],
+  ["Firebase – tu base de datos Firestore", "https://firestore.googleapis.com/v1/projects/casino-el-dorado/databases?key="+KEY, "google"],
+  ["Supabase (alternativa)", "https://supabase.co", "alt"],
+  ["Neon (alternativa)", "https://neon.tech", "alt"],
+  ["Cloudflare (alternativa)", "https://www.cloudflare.com/cdn-cgi/trace", "alt"],
+  ["GitHub (control – sabemos que funciona)", "https://api.github.com", "control"]
+];
+
+function makeRow(id, name){
+  const d = document.createElement("div");
+  d.className = "row wait"; d.id = id;
+  d.textContent = "⏳ " + name + " — probando…";
+  out.appendChild(d);
+  return d;
+}
+
+// no-cors: solo nos interesa si la CONEXIÓN se establece o la red la corta.
+function probe(url, ms){
+  return new Promise(resolve=>{
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>{ ctrl.abort(); resolve(false); }, ms);
+    fetch(url, {mode:"no-cors", cache:"no-store", signal:ctrl.signal})
+      .then(()=>{ clearTimeout(t); resolve(true); })
+      .catch(()=>{ clearTimeout(t); resolve(false); });
+  });
+}
+
+async function run(){
+  out.innerHTML = ""; summary.style.display = "none";
+  const results = [];
+  for(let i=0;i<tests.length;i++){
+    const [name,url,kind] = tests[i];
+    const d = makeRow("t"+i, name);
+    const ok = await probe(url, 8000);
+    d.className = "row " + (ok ? "ok" : "bad");
+    d.textContent = (ok ? "✅ ALCANZABLE: " : "❌ BLOQUEADO: ") + name;
+    results.push({name, ok, kind});
+    await new Promise(r=>setTimeout(r, 150));
+  }
+  const google = results.filter(r=>r.kind==="google");
+  const alt = results.filter(r=>r.kind==="alt");
+  const gOk = google.every(r=>r.ok);
+  const anyAlt = alt.some(r=>r.ok);
+  let msg;
+  if(gOk) msg = "✅ Tu red SÍ llega a Google/Firebase. El problema es de configuración (clave/API), no de red. Podemos seguir con Firebase.";
+  else if(anyAlt) msg = "🚫 Tu red bloquea Google/Firebase, PERO sí llega a alguna alternativa (Supabase/Neon/Cloudflare). Podemos migrar a la que salga verde.";
+  else msg = "🚫🚫 Tu red parece bloquear todo lo externo. Habrá que usar una solución distinta (te explico).";
+  summary.innerHTML = "<b>Resultado:</b><br>" + msg;
+  summary.style.display = "block";
+}
+</script>
+</body>
+</html>
