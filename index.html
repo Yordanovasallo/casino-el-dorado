@@ -277,6 +277,11 @@ const CONFIG_FALTA = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes("P
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+try{
+  // Fuerza "long polling": soluciona el error "client is offline" en redes
+  // que bloquean WebSockets/WebChannel (colegios, trabajos, algunas VPN).
+  db.settings({ experimentalForceLongPolling: true, ignoreUndefinedProperties: true });
+}catch(e){ console.warn("Firestore settings:", e); }
 
 let current = null;
 let pendingReveal = null;
@@ -288,6 +293,49 @@ let usersCache = [], ledgerCache = [], statsCache = null;
 function normName(n){ return String(n||"").trim().toLowerCase().replace(/\//g,"_"); }
 function showMsg(t){ const e=document.getElementById("msg"); e.textContent=t; e.classList.remove("hidden"); }
 function escapeHtml(v){ return String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+
+/* Traduce los errores de Firebase a mensajes entendibles */
+function msgDeError(e){
+  const code = e && e.code;
+  const m = (e && e.message) || "";
+  if(code==="unavailable" || /offline/i.test(m))
+    return "No hay conexión con Firebase. Revisa tu internet (prueba con datos móviles en vez de WiFi) y desactiva VPN o bloqueadores de anuncios.";
+  if(code==="permission-denied")
+    return "Firebase rechazó el acceso. Hay que publicar las reglas de Firestore (está en las instrucciones).";
+  if(code==="not-found")
+    return "No existe la base de datos Firestore en tu proyecto. Créala en Firebase (Compilación → Firestore Database).";
+  if(code==="failed-precondition")
+    return "Firestore no está configurada bien en el proyecto. Revisa que la base de datos esté creada en modo nativo.";
+  if(code==="timeout")
+    return "El servidor de Firebase no respondió a tiempo. Es casi siempre un problema de red.";
+  return m || "Error desconocido.";
+}
+
+/* Banner inferior de diagnóstico */
+function bannerConexion(html, esError){
+  let b = document.getElementById("diagBanner");
+  if(!b){
+    b = document.createElement("div");
+    b.id = "diagBanner";
+    b.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:10000;padding:11px 14px;font:13px/1.45 system-ui,-apple-system,sans-serif;text-align:center;color:#fff;box-shadow:0 -4px 20px rgba(0,0,0,.5)";
+    document.body.appendChild(b);
+  }
+  b.style.background = esError ? "#7a1420" : "#14532d";
+  b.innerHTML = html;
+  if(!esError) setTimeout(()=>{ if(b) b.remove(); }, 4000);
+}
+
+async function diagnosticoFirebase(){
+  if(CONFIG_FALTA){ showMsg("⚠️ Falta conectar Firebase: pega tu firebaseConfig en index.html (sigue el README)."); return; }
+  const timeout = new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout",message:"Sin respuesta tras 8 segundos"}), 8000));
+  try{
+    await Promise.race([ db.collection("__diag__").doc("ping").get(), timeout ]);
+    bannerConexion("✅ Conectado a Firebase correctamente. ¡Todo listo!", false);
+  }catch(e){
+    bannerConexion("⚠️ Sin conexión con Firebase &nbsp;<b>("+(e.code||"error")+")</b>: "+escapeHtml(msgDeError(e))+
+      "<br>Prueba con <b>datos móviles</b> en vez de WiFi, o desactiva <b>VPN / adblock</b>. El WiFi de colegios o trabajos suele bloquearlo.", true);
+  }
+}
 
 async function hashPass(p){
   if(window.crypto && crypto.subtle){
@@ -354,7 +402,7 @@ async function register(){
       if(s.exists) throw new Error("Ese usuario ya existe.");
       t.set(ref, u);
     });
-  }catch(e){ return showMsg(e.message||"No se pudo crear la cuenta."); }
+  }catch(e){ return showMsg(msgDeError(e)); }
   localStorage.setItem("casino_uid", docId);
   current = u;
   await enter();
@@ -372,7 +420,7 @@ async function login(){
     current = s.data();
     localStorage.setItem("casino_uid", docId);
     await enter();
-  }catch(e){ showMsg("No se pudo conectar: "+e.message); }
+  }catch(e){ showMsg("No se pudo conectar: "+msgDeError(e)); }
 }
 
 async function enter(){
@@ -909,6 +957,7 @@ R2.subscribe();
     }catch(e){ console.warn("Sesión:", e.message); }
   }
   if(CONFIG_FALTA) showMsg("⚠️ Falta conectar Firebase: pega tu firebaseConfig en index.html (sigue el README).");
+  else setTimeout(diagnosticoFirebase, 600);
 })();
 </script>
 </body>
