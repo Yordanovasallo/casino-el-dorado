@@ -654,6 +654,75 @@ const TO = (function(){
   function msg(t){ const b=$("trioMsg"); if(b) b.innerHTML = t || ""; }
   function ringColor(p){ return p > 50 ? "#3ddc84" : p > 25 ? "#f5c451" : "#ff6b5e"; }
 
+  /* ---- sonido de fichas (Web Audio, sin archivos) ---- */
+  let soundOn = localStorage.getItem("trio_snd") !== "0";
+  let actx = null;
+  function audio(){
+    if(!actx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      actx = new AC();
+    }
+    if(actx.state === "suspended") actx.resume().catch(()=>{});
+    return actx;
+  }
+  function chipSound(count){
+    if(!soundOn) return;
+    try{
+      const ctx = audio(); if(!ctx) return;
+      const n = count || 7, t0 = ctx.currentTime;
+      for(let i=0;i<n;i++){
+        const t = t0 + i*0.055;
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(850 + Math.random()*850, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.22, t + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + 0.19);
+      }
+    }catch(e){}
+  }
+  function toggleSound(){
+    soundOn = !soundOn;
+    localStorage.setItem("trio_snd", soundOn ? "1" : "0");
+    paintSound();
+    if(soundOn) chipSound(3);
+  }
+  function paintSound(){
+    const b = $("trioSnd");
+    if(b){ b.textContent = soundOn ? "🔊" : "🔇"; b.style.opacity = soundOn ? "1" : ".55"; }
+  }
+
+  /* ---- fichas volando desde el centro hasta el ganador ---- */
+  function flyChips(){
+    const felt = $("trioFelt"), seats = $("trioSeats");
+    if(!felt || !seats) return;
+    const win = seats.querySelector(".tseat.winner");
+    if(!win) return;
+    const fr = felt.getBoundingClientRect(), wr = win.getBoundingClientRect();
+    const cx = fr.width/2, cy = fr.height/2;
+    const tx = (wr.left + wr.width/2) - fr.left;
+    const ty = (wr.top + wr.height/2) - fr.top;
+    const N = 14;
+    for(let i=0;i<N;i++){
+      const chip = document.createElement("div");
+      chip.className = "fchip";
+      chip.textContent = "🪙";
+      chip.style.left = (cx - 11 + (Math.random()*24-12)) + "px";
+      chip.style.top  = (cy - 11 + (Math.random()*24-12)) + "px";
+      felt.appendChild(chip);
+      const dx = tx - cx, dy = ty - cy;
+      setTimeout(()=>{
+        chip.style.transform = `translate(${dx + (Math.random()*36-18)}px, ${dy + (Math.random()*36-18)}px) scale(.55) rotate(${(Math.random()*360)|0}deg)`;
+        chip.style.opacity = "0";
+      }, 40 + i*45);
+      setTimeout(()=>chip.remove(), 40 + i*45 + 900);
+    }
+    chipSound(14);
+  }
+
   /* Avatares y fichas de los jugadores sentados (v_users, legible por anon) */
   async function ensurePeople(ps){
     if(!people) people = {};
@@ -683,6 +752,7 @@ const TO = (function(){
       const st = await sbRpc("trio_tick", { p_now: Date.now() });
       if(st){
         const ph = st.phase;
+        const oldPhase = prevPhase;
         if(ph === "betting" && prevPhase !== "betting"){ myCards = []; await loadCards(); }
         else if(ph !== "betting"){ myCards = []; }
         prevPhase = ph;
@@ -695,6 +765,7 @@ const TO = (function(){
           if(current.avatar) people[current.id].avatar = current.avatar;
         }
         render();
+        if(ph === "done" && oldPhase === "betting" && st.result && st.result.winner) flyChips();
         if(current) refreshBal();
       }
     }catch(e){ console.warn("trio:", e.message); }
@@ -875,6 +946,7 @@ const TO = (function(){
     document.getElementById("mainGames").classList.add("hidden");
     if(!pollInt) pollInt = setInterval(sync, 1200);
     lastSig = null; lastBoard = 0;
+    paintSound();
     sync(); window.scrollTo(0,0);
   }
   function close(){
@@ -912,7 +984,7 @@ const TO = (function(){
       myCards = []; lastBoard = 0;
       state = await sbRpc("trio_deal", { p_now: Date.now() });
       prevPhase = "betting"; await ensurePeople(state.players||[]); await loadCards(); render(); refreshBal();
-      msg("");
+      chipSound(6); msg("");
     }catch(e){ alert(e.message || "No se pudo repartir."); }
   }
   async function bet(amtV){
@@ -935,7 +1007,7 @@ const TO = (function(){
     catch(e){ alert(e.message || "No te pudiste retirar."); }
   }
 
-  return {open,close,join,leave,deal,bet,fold,setBet,amt};
+  return {open,close,join,leave,deal,bet,fold,setBet,amt,toggleSound};
 })();
 
 /* ---------------- pestañas de acceso ---------------- */
