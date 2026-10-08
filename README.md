@@ -65,6 +65,7 @@ https://YORDANOVASALLO.github.io/casino-el-dorado/
   - 🎡 **Ruleta**: una ronda por hora, cuesta 50 fichas.
   - ⚡ **Ruleta Rápida**: una ronda por minuto, cuesta 5 fichas.
   - 🎟️ **Raspa y Gana**: 10 fichas por cartón, premios hasta 1000.
+  - 🃏 **Trío y Par**: póker multijugador en mesa compartida, ante 10 fichas, 3 rondas de apuestas con tiempo, la casa retiene 1% del bote.
 - Todos ven la misma ronda y el mismo ganador en tiempo real.
 
 ## Ajustes rápidos (en `index.html`)

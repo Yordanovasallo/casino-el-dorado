@@ -632,6 +632,217 @@ const SC = (function(){
   return {open,close,buy,reveal};
 })();
 
+/* ---------------- Trío y Par (multijugador) ---------------- */
+const TO = (function(){
+  const $ = n=>document.getElementById(n);
+  const RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+  const SUITS = ["♠","♥","♦","♣"];
+  let state=null, myCards=[], pollInt=null, busy=false, prevPhase=null;
+
+  function cardHtml(c, cls){
+    c = Number(c);
+    const r = c % 13, s = Math.floor(c / 13);
+    const red = (s === 1 || s === 2);
+    return `<div class="tcard ${red?"red":""} ${cls||""}"><div class="tcs">${SUITS[s]}</div><div>${RANKS[r]}</div></div>`;
+  }
+  function me(){
+    if(!state || !current) return null;
+    return (state.players||[]).find(p=>p.id===current.id) || null;
+  }
+  function msg(t){ const b=$("trioMsg"); if(b) b.innerHTML = t || ""; }
+
+  async function loadCards(){
+    myCards = [];
+    if(!current || !state || state.phase !== "betting") return;
+    const p = me(); if(!p || p.folded) return;
+    try{
+      const c = await sbRpc("trio_my_cards", { p_user_id: current.id });
+      myCards = Array.isArray(c) ? c : [];
+    }catch(e){ myCards = []; }
+  }
+
+  async function sync(){
+    if(busy) return; busy = true;
+    try{
+      const st = await sbRpc("trio_tick", { p_now: Date.now() });
+      if(st){
+        const ph = st.phase;
+        if(ph === "betting" && prevPhase !== "betting"){ myCards = []; await loadCards(); }
+        else if(ph !== "betting"){ myCards = []; }
+        prevPhase = ph;
+        state = st;
+        render();
+        if(current) refreshBal();
+      }
+    }catch(e){ console.warn("trio:", e.message); }
+    finally{ busy = false; }
+  }
+
+  function refreshBal(){
+    if(!current) return;
+    sbRpc("get_user", { p_id: current.id }).then(u=>{
+      if(u && u.id){ current.balance = u.balance; updateBalanceUI(); }
+    }).catch(()=>{});
+  }
+
+  function renderSeats(){
+    const ps = state.players || [];
+    const dealer = Number(state.dealer) || 0;
+    if(!ps.length){ $("trioSeats").innerHTML = '<div class="muted">Nadie sentado aún. Sé el primero.</div>'; return; }
+    $("trioSeats").innerHTML = ps.map((p,i)=>{
+      const isMe = current && p.id === current.id;
+      const st = p.folded ? '<span class="bad">retirado</span>'
+                : p.acted ? '<span class="ok">✓ listo</span>'
+                : '<span class="muted">pensando…</span>';
+      return `<div class="tseat ${isMe?"me":""} ${p.folded?"folded":""}">
+        <div>${i===dealer?"🎩 ":""}<strong>${escapeHtml(p.name)}</strong>${isMe?" (tú)":""}</div>
+        <div class="muted">Ronda: ${Number(p.bet)||0}</div>
+        <div>${st}</div></div>`;
+    }).join("");
+  }
+
+  function renderBoard(){
+    const bd = state.board || [];
+    let h = bd.map(c=>cardHtml(c,"")).join("");
+    for(let i = bd.length; i < 2; i++) h += '<div class="tcard back"></div>';
+    $("trioBoard").innerHTML = h;
+  }
+
+  function renderHand(){
+    const box = $("trioHand");
+    if(state.phase !== "betting" || !myCards.length){ box.innerHTML = ""; return; }
+    box.innerHTML = '<div class="muted" style="align-self:center">Tus cartas</div>' + myCards.map(c=>cardHtml(c,"")).join("");
+  }
+
+  function renderActions(){
+    const box = $("trioActions");
+    if(!current){ box.innerHTML = ""; return; }
+    if(current.admin){ box.innerHTML = '<div class="muted" style="text-align:center">La cuenta de administración no puede jugar.</div>'; return; }
+    const ps = state.players || [];
+    const m = me();
+
+    if(state.phase === "betting"){
+      if(!m){
+        box.innerHTML = `<button class="primary" style="width:100%" onclick="TO.join()">🪑 Sentarse en la mesa (ante 10)</button>`;
+        return;
+      }
+      if(m.folded){
+        box.innerHTML = '<div class="muted" style="text-align:center">Te retiraste de esta mano. Espera el resultado.</div>';
+        return;
+      }
+      if(m.acted){
+        box.innerHTML = '<div class="muted" style="text-align:center">Esperando a los demás jugadores…</div>';
+        return;
+      }
+      box.innerHTML = `
+        <div class="muted" style="text-align:center;margin-bottom:6px">Tu turno · Ronda ${state.round}/3 — apuesta, pasa (0) o retírate</div>
+        <input id="trioBetAmt" type="number" min="0" max="${Number(current.balance)||0}" value="10" style="text-align:center">
+        <div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
+          <button class="primary" onclick="TO.bet()">Apostar</button>
+          <button class="ghost" onclick="TO.bet(0)">Pasar</button>
+          <button class="danger" onclick="TO.fold()">Retirarse</button>
+        </div>`;
+      return;
+    }
+
+    // waiting o done
+    const n = ps.length;
+    const seated = !!m;
+    let h = seated
+      ? `<div class="grid" style="grid-template-columns:1fr 1fr">
+           <button class="primary" onclick="TO.deal()" ${n<2?"disabled":""}>🃏 Repartir (ante 10)</button>
+           <button class="ghost" onclick="TO.leave()">Levantarse</button></div>`
+      : `<button class="primary" style="width:100%" onclick="TO.join()">🪑 Sentarse en la mesa</button>`;
+    if(seated && n < 2) h += '<div class="muted" style="text-align:center;margin-top:6px">Se necesitan al menos 2 jugadores para repartir.</div>';
+    box.innerHTML = h;
+  }
+
+  function renderResult(){
+    const box = $("trioResult");
+    if(state.phase !== "done" || !state.result){ box.classList.add("hidden"); box.innerHTML=""; return; }
+    const r = state.result;
+    let h = `<strong>🏆 ${escapeHtml(r.name || "Nadie")} gana ${Number(r.prize)||0} fichas</strong><br><span class="muted">Mano: ${escapeHtml(r.hand||"—")}</span>`;
+    if(Array.isArray(r.hands) && r.hands.length){
+      h += '<div class="trio-hands">' + r.hands.map(x=>
+        `<div class="trio-h"><div>${escapeHtml(x.name)}</div><div>${(x.cards||[]).map(c=>cardHtml(c,"small")).join("")}</div><b>${escapeHtml(x.hand||"")}</b></div>`
+      ).join("") + '</div>';
+    }
+    box.innerHTML = h;
+    box.classList.remove("hidden");
+  }
+
+  function renderTimer(){
+    const t = $("trioTimer");
+    if(!t) return;
+    if(!state || state.phase !== "betting"){ t.textContent = "--"; return; }
+    const rem = Math.max(0, Number(state.round_end||0) - Date.now());
+    t.textContent = Math.ceil(rem/1000) + "s";
+  }
+
+  function render(){
+    if(!state) return;
+    $("trioPot").textContent = Number(state.pot)||0;
+    $("trioRound").textContent = state.phase === "betting" ? ("Ronda " + state.round + "/3") : (state.phase === "done" ? "Terminada" : "Esperando");
+    renderBoard(); renderSeats(); renderHand(); renderActions(); renderResult(); renderTimer();
+  }
+
+  function open(){
+    $("trioGame").classList.remove("hidden");
+    document.getElementById("mainGames").classList.add("hidden");
+    if(!pollInt) pollInt = setInterval(sync, 1200);
+    sync(); window.scrollTo(0,0);
+  }
+  function close(){
+    $("trioGame").classList.add("hidden");
+    document.getElementById("mainGames").classList.remove("hidden");
+    if(pollInt){ clearInterval(pollInt); pollInt = null; }
+    state = null; myCards = []; prevPhase = null;
+  }
+
+  function guard(){ if(!current) return alert("Inicia sesión para jugar."); if(current.admin) return alert("La cuenta de administración no puede jugar."); return false; }
+
+  async function join(){
+    if(guard()) return;
+    try{ state = await sbRpc("trio_join", { p_user_id: current.id }); render(); refreshBal(); }
+    catch(e){ alert(e.message || "No se pudo sentar."); }
+  }
+  async function leave(){
+    if(guard()) return;
+    try{ state = await sbRpc("trio_leave", { p_user_id: current.id }); myCards=[]; render(); refreshBal(); }
+    catch(e){ alert(e.message || "No pudiste levantarte."); }
+  }
+  async function deal(){
+    if(guard()) return;
+    try{
+      myCards = [];
+      state = await sbRpc("trio_deal", { p_now: Date.now() });
+      prevPhase = "betting"; await loadCards(); render(); refreshBal();
+      msg("");
+    }catch(e){ alert(e.message || "No se pudo repartir."); }
+  }
+  async function bet(amt){
+    if(guard()) return;
+    let v;
+    if(amt === 0) v = 0;
+    else{
+      const el = $("trioBetAmt");
+      v = Math.floor(Number(el ? el.value : NaN));
+      if(!Number.isFinite(v) || v < 0) return alert("Escribe una apuesta válida (0 = pasar).");
+      if(v > Number(current.balance)) return alert("No tienes suficientes fichas.");
+    }
+    try{ state = await sbRpc("trio_bet", { p_user_id: current.id, p_amount: v, p_now: Date.now() }); render(); refreshBal(); }
+    catch(e){ alert(e.message || "No se pudo apostar."); }
+  }
+  async function fold(){
+    if(guard()) return;
+    if(!confirm("¿Retirarte de esta mano?")) return;
+    try{ state = await sbRpc("trio_fold", { p_user_id: current.id }); myCards=[]; render(); refreshBal(); }
+    catch(e){ alert(e.message || "No te pudiste retirar."); }
+  }
+
+  return {open,close,join,leave,deal,bet,fold};
+})();
+
 /* ---------------- pestañas de acceso ---------------- */
 loginTab.onclick = ()=>{ loginBox.classList.remove("hidden"); regBox.classList.add("hidden"); loginTab.className="primary"; regTab.className="ghost"; };
 regTab.onclick = ()=>{ regBox.classList.remove("hidden"); loginBox.classList.add("hidden"); regTab.className="primary"; loginTab.className="ghost"; };
