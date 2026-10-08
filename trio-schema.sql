@@ -1,9 +1,10 @@
 -- ===========================================================================
 --  TRIO  (reglas oficiales del juego de mesa de Kaya Miyano)  -  v2
 -- ---------------------------------------------------------------------------
---  36 cartas: numeros 1..12 en 3 copias.  3 a 6 jugadores.
---  Reparto:  3 jug -> 9 + 9 centro | 4 jug -> 7 + 8 | 5 jug -> 6 + 6
---            6 jug -> 5 + 6          (siempre suman 36)
+--  36 cartas: numeros 1..12 en 3 copias.  2 a 6 jugadores.
+--  Reparto:  2 jug -> 12 + 12 centro | 3 jug -> 9 + 9 | 4 jug -> 7 + 8
+--            5 jug -> 6 + 6 | 6 jug -> 5 + 6     (siempre suman 36)
+--  La partida arranca sola en cuanto se sientan 2 jugadores.
 --
 --  TURNO: revelar de a una carta, sacada del centro o pidiendole a cualquier
 --  jugador (incluido tu mismo) su carta mas BAJA o mas ALTA.
@@ -231,6 +232,14 @@ begin
   update trio set players = g.players || jsonb_build_array(
     jsonb_build_object('id', me.id, 'name', me.name, 'hand', '[]'::jsonb, 'trios', '[]'::jsonb))
   where id = 1;
+
+  -- con 2 sentados (todos con saldo) la partida arranca sola
+  if (select jsonb_array_length(players) from trio where id = 1) >= 2
+     and (select count(*) from jsonb_array_elements((select players from trio where id = 1)) e
+           join users u on u.id = e->>'id' where u.balance < 10) = 0 then
+    perform public.trio_do_deal();
+  end if;
+
   return (select trio_state(p_user_id));
 end $$;
 
@@ -278,7 +287,7 @@ begin
   elsif newn > 0 then nt := g.turn % newn;
   else nt := 0; end if;
 
-  if newn < 3 then
+  if newn < 2 then
     share := case when newn > 0 then floor(g.pot / newn)::int else 0 end;
     for pc in select e->>'id' uid, e->>'name' uname from jsonb_array_elements(arr) e loop
       update users set balance = balance + share where id = pc.uid;
@@ -299,9 +308,9 @@ begin
   return (select trio_state(p_user_id));
 end $$;
 
--- Repartir.  Cada sentado paga 10 de ante.
-create or replace function public.trio_deal(p_user_id text)
-returns jsonb language plpgsql security definer set search_path = public as $$
+-- Repartir (interno).  Cada sentado paga 10 de ante.
+create or replace function public.trio_do_deal() returns void
+language plpgsql security definer set search_path = public as $$
 declare
   g trio%rowtype;
   deck int[];
@@ -318,11 +327,8 @@ declare
 begin
   select * into g from trio where id = 1 for update;
   if g.phase = 'playing' then raise exception 'Ya hay una partida en curso.'; end if;
-  if not exists (select 1 from jsonb_array_elements(g.players) e where e->>'id' = p_user_id) then
-    raise exception 'Siéntate en la mesa primero.';
-  end if;
   n := jsonb_array_length(g.players);
-  if n < 3 then raise exception 'Se necesitan al menos 3 jugadores para repartir.'; end if;
+  if n < 2 then raise exception 'Se necesitan al menos 2 jugadores para repartir.'; end if;
   if n > 6 then raise exception 'Maximo 6 jugadores.'; end if;
   if exists (select 1 from jsonb_array_elements(g.players) e join users u on u.id = e->>'id'
               where u.balance < 10) then
@@ -330,8 +336,8 @@ begin
   end if;
 
   select array_agg(x order by random()) into deck from generate_series(1, 36) x;
-  hs := case n when 3 then 9 when 4 then 7 when 5 then 6 else 5 end;
-  ms := case n when 3 then 9 when 4 then 8 when 5 then 6 else 6 end;
+  hs := case n when 2 then 12 when 3 then 9 when 4 then 7 when 5 then 6 else 5 end;
+  ms := case n when 2 then 12 when 3 then 9 when 4 then 8 when 5 then 6 else 6 end;
   nowms := (extract(epoch from now()) * 1000)::bigint;
   i := 1;
 
@@ -360,7 +366,17 @@ begin
     revealed = '[]'::jsonb, resolve_kind = null, resolve_at = 0,
     result = null, game_no = g.game_no + 1
   where id = 1;
+end $$;
 
+-- Repartir (publico).  Solo valida que el que llama este sentado.
+create or replace function public.trio_deal(p_user_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from jsonb_array_elements((select players from trio where id = 1)) e
+                  where e->>'id' = p_user_id) then
+    raise exception 'Siéntate en la mesa primero.';
+  end if;
+  perform trio_do_deal();
   return (select trio_state(p_user_id));
 end $$;
 
@@ -509,6 +525,7 @@ revoke execute on function public.trio_tick(text)           from public, anon, a
 revoke execute on function public.trio_turn_advance()       from public, anon, authenticated;
 revoke execute on function public.trio_resolve_now(bigint)  from public, anon, authenticated;
 revoke execute on function public.trio_maintain()           from public, anon, authenticated;
+revoke execute on function public.trio_do_deal()            from public, anon, authenticated;
 revoke execute on function public.trio_turn_ms()            from public, anon, authenticated;
 
 grant execute on function public.trio_state(text)   to anon, authenticated;

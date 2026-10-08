@@ -192,22 +192,22 @@ body{overflow-x:hidden}}
 
 /* ===== Mesa oval estilo GGPoker ===== */
 .trio-felt{
-  position:relative;width:100%;aspect-ratio:16/9;min-height:320px;max-height:60vh;
+  position:relative;width:100%;aspect-ratio:16/9;min-height:440px;max-height:80vh;
   border-radius:50%/50%;margin:16px auto;
   background:radial-gradient(ellipse at 50% 40%,#1f7a52 0%,#14603e 45%,#0b3f28 78%,#062a1b 100%);
   box-shadow:0 0 0 6px #3a2c14,0 0 0 10px #6b5420,0 0 0 13px #241b0d,0 18px 44px #000b,inset 0 0 70px #0007;
   overflow:visible;
 }
-.trio-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;pointer-events:none;width:70%}
-.trio-pot{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border:1px solid rgba(245,196,81,.55);border-radius:999px;padding:7px 20px;font-weight:900;font-size:24px;color:#f5c451;text-shadow:0 0 12px rgba(245,196,81,.55);letter-spacing:.5px}
+.trio-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;pointer-events:none;width:84%}
+.trio-pot{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border:1px solid rgba(245,196,81,.55);border-radius:999px;padding:9px 26px;font-weight:900;font-size:30px;color:#f5c451;text-shadow:0 0 12px rgba(245,196,81,.55);letter-spacing:.5px}
 .trio-pot .plabel{font-size:11px;letter-spacing:2px;color:#c9b47a;font-weight:800}
-.trio-board{display:flex;gap:9px;justify-content:center;align-items:center;min-height:80px;margin-top:14px}
+.trio-board{display:flex;gap:12px;justify-content:center;align-items:center;min-height:96px;margin-top:16px}
 .trio-roundbadge{display:inline-block;margin-top:6px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 14px;font-size:12px;font-weight:800;color:#cbd3e1;letter-spacing:1px}
 
 /* ===== Asientos alrededor de la mesa ===== */
-.tseat{position:absolute;transform:translate(-50%,-50%);width:96px;text-align:center;z-index:3;transition:filter .3s,opacity .3s}
-.tav-wrap{position:relative;width:56px;height:56px;margin:0 auto}
-.tav{width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid #33456b;background:#131a2c;box-shadow:0 4px 12px #000a,inset 0 0 0 2px #00000055}
+.tseat{position:absolute;transform:translate(-50%,-50%);width:118px;text-align:center;z-index:3;transition:filter .3s,opacity .3s}
+.tav-wrap{position:relative;width:66px;height:66px;margin:0 auto}
+.tav{width:66px;height:66px;border-radius:50%;overflow:hidden;border:3px solid #33456b;background:#131a2c;box-shadow:0 4px 12px #000a,inset 0 0 0 2px #00000055}
 .tav img{width:100%;height:100%;object-fit:cover;display:block}
 .tseat.me .tav{border-color:#f5c451}
 .tseat.turn .tav{border-color:#3ddc84}
@@ -227,14 +227,14 @@ body{overflow-x:hidden}}
 .tpot-fly{position:absolute;left:50%;top:-8px;transform:translateX(-50%);font-size:11px;color:#3ddc84;font-weight:900;pointer-events:none}
 
 /* ===== Cartas ===== */
-.tcard{width:54px;height:78px;border-radius:8px;background:linear-gradient(160deg,#fff,#eceae4);color:#15203a;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:20px;line-height:1.05;box-shadow:0 5px 14px #0009;position:relative;flex:0 0 auto;border:1px solid #00000022}
+ .tcard{width:58px;height:84px;border-radius:8px;background:linear-gradient(160deg,#fff,#eceae4);color:#15203a;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:20px;line-height:1.05;box-shadow:0 5px 14px #0009;position:relative;flex:0 0 auto;border:1px solid #00000022}
 .tcard .tcs{font-size:28px}
 .tcard.red{color:#c0392b}
-.tcard.small{width:38px;height:54px;font-size:14px}
-.tcard.small .tcs{font-size:19px}
+.tcard.small{width:48px;height:70px;font-size:15px}
+.tcard.small .tcs{font-size:22px}
 .tcard.back{background:#1e2c4a;background-image:repeating-linear-gradient(45deg,#33456b 0 6px,#1e2c4a 6px 12px);border:2px solid #f5c451;color:transparent}
-.tcard.big{width:66px;height:94px;font-size:24px}
-.tcard.big .tcs{font-size:34px}
+.tcard.big{width:74px;height:106px;font-size:26px}
+.tcard.big .tcs{font-size:38px}
 .tcard.dealt{animation:dealIn .35s cubic-bezier(.2,.8,.3,1.1) backwards}
 @keyframes dealIn{from{transform:translateY(-26px) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
 
@@ -281,8 +281,8 @@ body{overflow-x:hidden}}
 .tcard.faceup{border-color:#f5c451;box-shadow:0 0 10px rgba(245,196,81,.45)}
 .tcard.gone{background:#0b1424;border:1px dashed #3a4a6e;box-shadow:none}
 .tcard .tnum{font-size:26px;font-weight:900;line-height:1}
-.tcard.small .tnum{font-size:19px}
-.tcard.big .tnum{font-size:34px}
+.tcard.small .tnum{font-size:26px}
+.tcard.big .tnum{font-size:38px}
 .tcard.tiny{width:26px;height:36px;border-radius:5px}
 .tcard.tiny .tnum{font-size:12px}
 .tcard.back .tnum{color:transparent}
@@ -306,10 +306,10 @@ body{overflow-x:hidden}}
 
 
 @media (max-width:640px){
-  .trio-felt{aspect-ratio:4/3;min-height:300px}
-  .tseat{width:82px}
-  .tav-wrap{width:46px;height:46px}
-  .tav{width:46px;height:46px}
+   .trio-felt{aspect-ratio:4/3;min-height:380px}
+   .tseat{width:96px}
+   .tav-wrap{width:54px;height:54px}
+  .tav{width:54px;height:54px}
   .tname{font-size:11px;padding:1px 7px}
   .tstack{font-size:11px}
   .trio-pot{font-size:19px;padding:6px 15px}
@@ -344,7 +344,7 @@ body{overflow-x:hidden}}
 <button class="ghost" style="height:190px;font-size:54px" onclick="R1.open()">🎡<div style="font-size:17px;margin-top:8px">Ruleta<br>50 fichas · 1 h</div></button>
 <button class="ghost" style="height:190px;font-size:54px" onclick="R2.open()">⚡<div style="font-size:17px;margin-top:8px">Ruleta Rápida<br>5 fichas · 1 min</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="SC.open()">🎟️<div style="font-size:17px;margin-top:6px">Raspa y Gana<br>10 fichas · premios hasta 1000</div></button>
-<button class="ghost" style="grid-column:1/-1;height:130px;font-size:44px" onclick="TO.open()">🃏<div style="font-size:16px;margin-top:6px">Trio<br>Juego de mesa · 3-6 jugadores · ante 10 · casa 1%</div></button>
+<button class="ghost" style="grid-column:1/-1;height:130px;font-size:44px" onclick="TO.open()">🃏<div style="font-size:16px;margin-top:6px">Trio<br>Juego de mesa · 2-6 jugadores · ante 10 · casa 1%</div></button>
 </div></div></div>
 
 <section id="rouletteGame" class="card hidden">
@@ -388,7 +388,7 @@ body{overflow-x:hidden}}
   <h2>🃏 Trio</h2>
   <div class="trio-badges"><button id="trioSnd" class="tsnd" onclick="TO.toggleSound()" title="Sonido">🔊</button><span id="trioTimer" class="pill gold">--</span></div>
 </div>
-<div class="trio-info">Juego de mesa Trio · 36 cartas (1-12 × 3) · Cada turno revela 1 carta: del centro o pide la más baja/alta de un jugador (o tuyas) · 3 iguales = llevas el trío · Gana quien junta 3 tríos o el trío de 7 · Ante 10 · La casa retiene 1%</div>
+<div class="trio-info">Juego de mesa Trio · 2-6 jugadores · La partida arranca sola al sentarse 2 · 36 cartas (1-12 × 3) · En tu turno revela 1 carta: del centro o pide la más baja/alta de un jugador (o tú) · 3 iguales = llevas el trío · Gana quien junta 3 tríos o el trío de 7 · Ante 10 · La casa retiene 1%</div>
 
 <div class="trio-felt" id="trioFelt">
   <div class="trio-center">
@@ -1330,10 +1330,10 @@ const TO = (function(){
     if(seated){
       box.innerHTML = `
         <div class="tbet-row">
-          <button class="tbtn bet" onclick="TO.deal()" ${n<3?"disabled":""}>🃏 Repartir · ante 10</button>
+          <button class="tbtn bet" onclick="TO.deal()" ${n<2?"disabled":""}>🃏 Repartir · ante 10</button>
           <button class="tbtn ghost2" onclick="TO.leave()">Levantarse</button>
         </div>
-        ${n<3?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 3 jugadores para repartir.</div>':''}
+        ${n<2?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 2 jugadores para repartir (la partida arranca sola).</div>':''}
         ${state.phase==="done" && state.result ? `<div class="tbet-hint" style="margin-top:6px">Partida terminada. Reparte de nuevo para jugar otra mano.</div>` : ''}`;
     } else {
       box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse en la mesa</button></div>`;

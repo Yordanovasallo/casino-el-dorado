@@ -910,10 +910,10 @@ const TO = (function(){
     if(seated){
       box.innerHTML = `
         <div class="tbet-row">
-          <button class="tbtn bet" onclick="TO.deal()" ${n<3?"disabled":""}>🃏 Repartir · ante 10</button>
+          <button class="tbtn bet" onclick="TO.deal()" ${n<2?"disabled":""}>🃏 Repartir · ante 10</button>
           <button class="tbtn ghost2" onclick="TO.leave()">Levantarse</button>
         </div>
-        ${n<3?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 3 jugadores para repartir.</div>':''}
+        ${n<2?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 2 jugadores para repartir (la partida arranca sola).</div>':''}
         ${state.phase==="done" && state.result ? `<div class="tbet-hint" style="margin-top:6px">Partida terminada. Reparte de nuevo para jugar otra mano.</div>` : ''}`;
     } else {
       box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse en la mesa</button></div>`;
