@@ -65,7 +65,7 @@ https://YORDANOVASALLO.github.io/casino-el-dorado/
   - 🎡 **Ruleta**: una ronda por hora, cuesta 50 fichas.
   - ⚡ **Ruleta Rápida**: una ronda por minuto, cuesta 5 fichas.
   - 🎟️ **Raspa y Gana**: 10 fichas por cartón, premios hasta 1000.
-  - 🃏 **Trío y Par**: póker multijugador en mesa compartida, ante 10 fichas, 3 rondas de apuestas con tiempo, la casa retiene 1% del bote.
+  - 🃏 **Trio**: el juego de mesa de Kaya Miyano (36 cartas, 1-12 por triplicado). Por turno se revela 1 carta: del centro o pidiendo a un jugador su carta más baja/alta (3 iguales = llevas el trío). Gana quien forme 3 tríos o el trío de 7. 3-6 jugadores, ante 10 fichas, la casa retiene 1% del bote.
 - Todos ven la misma ronda y el mismo ganador en tiempo real.
 
 ## Ajustes rápidos (en `index.html`)

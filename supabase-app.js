@@ -632,29 +632,33 @@ const SC = (function(){
   return {open,close,buy,reveal};
 })();
 
-/* ---------------- Trío y Par (multijugador, estilo GGPoker) ---------------- */
+/* ---------------- Trio (juego de mesa, estilo GGPoker) ---------------- */
 const TO = (function(){
   const $ = n=>document.getElementById(n);
-  const RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
-  const SUITS = ["♠","♥","♦","♣"];
-  const ROUND_MS = 45000;
-  let state=null, myCards=[], pollInt=null, busy=false, prevPhase=null;
-  let people=null, lastSig=null, lastBoard=0;
+  const TURN_MS = 20000;
+  let state=null, pollInt=null, timerInt=null, busy=false, prevPhase=null;
+  let people=null, lastSig=null, lastSyncAt=0;
 
-  function cardHtml(c, cls){
-    c = Number(c);
-    const r = c % 13, s = Math.floor(c / 13);
-    const red = (s === 1 || s === 2);
-    return `<div class="tcard ${red?"red":""} ${cls||""}"><div class="tcs">${SUITS[s]}</div><div>${RANKS[r]}</div></div>`;
+  function numCard(v, cls){
+    v = Number(v);
+    return `<div class="tcard ${cls||""}"><div class="tnum">${Number.isFinite(v)?v:"?"}</div></div>`;
   }
   function me(){
     if(!state || !current) return null;
     return (state.players||[]).find(p=>p.id===current.id) || null;
   }
+  function pname(id){
+    const p = (state.players||[]).find(x=>x.id===id);
+    return p ? p.name : "?";
+  }
+  function myTurn(){
+    return state && state.phase==="playing" && !state.resolve_kind && current
+      && (state.players[state.turn]||{}).id === current.id;
+  }
   function msg(t){ const b=$("trioMsg"); if(b) b.innerHTML = t || ""; }
   function ringColor(p){ return p > 50 ? "#3ddc84" : p > 25 ? "#f5c451" : "#ff6b5e"; }
 
-  /* ---- sonido de fichas (Web Audio, sin archivos) ---- */
+  /* ---- sonido (Web Audio, sin archivos) ---- */
   let soundOn = localStorage.getItem("trio_snd") !== "0";
   let actx = null;
   function audio(){
@@ -705,25 +709,25 @@ const TO = (function(){
     const cx = fr.width/2, cy = fr.height/2;
     const tx = (wr.left + wr.width/2) - fr.left;
     const ty = (wr.top + wr.height/2) - fr.top;
-    const N = 14;
+    const N = 16;
     for(let i=0;i<N;i++){
       const chip = document.createElement("div");
       chip.className = "fchip";
       chip.textContent = "🪙";
-      chip.style.left = (cx - 11 + (Math.random()*24-12)) + "px";
-      chip.style.top  = (cy - 11 + (Math.random()*24-12)) + "px";
+      chip.style.left = (cx - 12 + (Math.random()*24-12)) + "px";
+      chip.style.top  = (cy - 12 + (Math.random()*24-12)) + "px";
       felt.appendChild(chip);
       const dx = tx - cx, dy = ty - cy;
       setTimeout(()=>{
-        chip.style.transform = `translate(${dx + (Math.random()*36-18)}px, ${dy + (Math.random()*36-18)}px) scale(.55) rotate(${(Math.random()*360)|0}deg)`;
+        chip.style.transform = `translate(${dx + (Math.random()*40-20)}px, ${dy + (Math.random()*40-20)}px) scale(.5) rotate(${(Math.random()*360)|0}deg)`;
         chip.style.opacity = "0";
       }, 40 + i*45);
       setTimeout(()=>chip.remove(), 40 + i*45 + 900);
     }
-    chipSound(14);
+    chipSound(16);
   }
 
-  /* Avatares y fichas de los jugadores sentados (v_users, legible por anon) */
+  /* Avatares y fichas de los jugadores (v_users, legible por anon) */
   async function ensurePeople(ps){
     if(!people) people = {};
     if(!ps.length) return;
@@ -736,36 +740,35 @@ const TO = (function(){
     need.forEach(id=>{ if(!(id in people)) people[id] = { avatar:"", balance:null }; });
   }
 
-  async function loadCards(){
-    myCards = [];
-    if(!current || !state || state.phase !== "betting") return;
-    const p = me(); if(!p || p.folded) return;
-    try{
-      const c = await sbRpc("trio_my_cards", { p_user_id: current.id });
-      myCards = Array.isArray(c) ? c : [];
-    }catch(e){ myCards = []; }
+  function remMs(){
+    if(!state || state.phase !== "playing") return 0;
+    const drift = Date.now() - lastSyncAt;
+    const t = Number(state.turn_end||0) - (Number(state.server_now||0) + drift);
+    return Math.max(0, t);
   }
 
   async function sync(){
     if(busy) return; busy = true;
     try{
-      const st = await sbRpc("trio_tick", { p_now: Date.now() });
+      const body = current && current.id ? { p_user_id: current.id } : {};
+      const st = await sbRpc("trio_tick", body);
       if(st){
-        const ph = st.phase;
-        const oldPhase = prevPhase;
-        if(ph === "betting" && prevPhase !== "betting"){ myCards = []; await loadCards(); }
-        else if(ph !== "betting"){ myCards = []; }
+        lastSyncAt = Date.now();
+        const ph = st.phase, oldPh = prevPhase;
         prevPhase = ph;
         state = st;
         const ps = st.players || [];
-        const sig = ph + "|" + st.round + "|" + st.pot + "|" + ps.map(p=>p.id).sort().join(",");
+        const sig = ph + "|" + st.turn + "|" + st.pot + "|" + ps.map(p=>p.id).sort().join(",");
         if(sig !== lastSig){ lastSig = sig; await ensurePeople(ps); }
         if(current && people && people[current.id]){
           people[current.id].balance = current.balance;
           if(current.avatar) people[current.id].avatar = current.avatar;
         }
         render();
-        if(ph === "done" && oldPhase === "betting" && st.result && st.result.winner) flyChips();
+        if(ph === "done" && oldPh !== "done" && st.result && st.result.winner){
+          flyChips();
+          if(current && st.result.winner === current.id) triggerWinRain();
+        }
         if(current) refreshBal();
       }
     }catch(e){ console.warn("trio:", e.message); }
@@ -779,20 +782,20 @@ const TO = (function(){
     }).catch(()=>{});
   }
 
-  /* Asientos repartidos en elipse, tú siempre abajo (estilo GGPoker) */
+  /* Asientos en elipse, tú siempre abajo (estilo GGPoker) */
   function seatLayout(){
     const ps = state.players || [];
     const n = ps.length;
     if(!n) return [];
-    let myIdx = ps.findIndex(p=>current && p.id===current.id);
-    if(myIdx < 0) myIdx = 0;
-    const dealer = Number(state.dealer) || 0;
-    const betting = state.phase === "betting";
-    const rem = betting ? Math.max(0, Number(state.round_end||0) - Date.now()) : 0;
-    const pct = betting ? Math.min(100, Math.max(0, (rem/ROUND_MS)*100)) : 0;
+    const myIdx = ps.findIndex(p=>current && p.id===current.id);
+    const k0 = myIdx >= 0 ? myIdx : 0;
+    const isMine = myIdx >= 0;
+    const playing = state.phase === "playing";
+    const rem = playing ? remMs() : 0;
+    const pct = playing ? Math.max(0, Math.min(100, (rem/TURN_MS)*100)) : 0;
     const out = [];
     for(let k=0;k<n;k++){
-      const j = (myIdx + k) % n;
+      const j = (k0 + k) % n;
       const p = ps[j];
       const ang = (90 + k*(360/n)) * Math.PI/180;
       out.push({
@@ -800,57 +803,73 @@ const TO = (function(){
         x: 50 + 38*Math.cos(ang),
         y: 50 + 35*Math.sin(ang),
         isMe: !!(current && p.id === current.id),
-        turn: betting && !p.folded && !p.acted,
-        dealer: j === dealer,
-        pct
+        turn: playing && j === state.turn,
+        pct,
+        place: isMine ? (ps[j].id === current.id ? 0 : 1) : 0
       });
     }
     return out;
   }
 
-  function winnerId(){
-    return (state.phase === "done" && state.result && state.result.winner) ? state.result.winner : null;
+  function makeTrioRow(vs){
+    return `<div class="ttrios">${(vs||[]).map(v=>numCard(v,"tiny")).join("")}</div>`;
   }
 
   function renderSeats(){
     const box = $("trioSeats");
     const seats = seatLayout();
     if(!seats.length){ box.innerHTML = ""; return; }
-    const win = winnerId();
+    const win = (state.phase === "done" && state.result && state.result.winner) ? state.result.winner : null;
     box.innerHTML = seats.map(s=>{
       const p = s.p;
       const info = (people && people[p.id]) || {};
       const av = info.avatar || defaultAvatar();
       const stack = (info.balance != null) ? info.balance : "…";
       const ring = s.turn ? `<div class="tring" style="background:conic-gradient(${ringColor(s.pct)} ${s.pct}%, rgba(255,255,255,.14) 0)"></div>` : "";
-      const dlr = s.dealer ? `<div class="tdealer">D</div>` : "";
-      const bet = Number(p.bet) || 0;
-      const betHtml = bet > 0 ? `<div class="tbet">+${bet}</div>` : `<div class="tbet" style="visibility:hidden">+0</div>`;
-      const status = p.folded ? "RETIRADO" : (s.turn ? "· · ·" : (p.acted ? "✓ LISTO" : ""));
-      const cls = ["tseat", s.isMe?"me":"", s.turn?"turn":"", p.folded?"folded":"", (win && p.id===win)?"winner":""].join(" ");
+      const backs = (state.phase === "playing") ? `<div class="thand">${Array.from({length: Math.max(0, p.hand_len||0)}, ()=>'<div class="tcard back"></div>').join("")}</div>` : "";
+      const trios = makeTrioRow(p.trios);
+      const cls = ["tseat", s.isMe?"me":"", s.turn?"turn":"", (win && p.id===win)?"winner":""].join(" ");
+      const who = s.turn ? " · TURNO" : "";
       return `<div class="${cls}" style="left:${s.x}%;top:${s.y}%">
-        <div class="tav-wrap"><div class="tav"><img src="${av}" alt=""></div>${ring}${dlr}</div>
+        <div class="tav-wrap"><div class="tav"><img src="${av}" alt=""></div>${ring}</div>
         <div class="tname">${escapeHtml(p.name)}${s.isMe?" (tú)":""}</div>
         <div class="tstack">🪙 ${stack}</div>
-        ${betHtml}
-        <div class="tstatus">${status}</div>
+        ${backs}
+        ${trios}
+        <div class="tstatus">${who||(state.phase==="playing"?"":"")}</div>
       </div>`;
     }).join("");
   }
 
   function renderBoard(){
-    const bd = state.board || [];
-    let h = "";
-    for(let i=0;i<bd.length;i++) h += cardHtml(bd[i], i >= lastBoard ? "dealt" : "");
-    for(let i=bd.length;i<2;i++) h += '<div class="tcard back"></div>';
-    lastBoard = bd.length;
-    $("trioBoard").innerHTML = h;
+    const bd = state.middle || [];
+    const rev = (state.revealed||[]).filter(r=>r.type==="mid");
+    const clickable = myTurn();
+    $("trioBoard").innerHTML = bd.map((m,i)=>{
+      if(m && m.e) return `<div class="tcard small gone"></div>`;
+      const rv = rev.find(r=>r.idx===i);
+      if(rv) return numCard(rv.v, "small faceup dealt");
+      return `<div class="tcard small back ${clickable?"clickable":""}" data-i="${i}"${clickable?` onclick="TO.pickMid(${i})"`:""}></div>`;
+    }).join("") || "";
+  }
+
+  function renderStrip(){
+    const box = $("trioStrip");
+    const rev = state.revealed || [];
+    if(!rev.length){ if(box) box.innerHTML = ""; return; }
+    const txt = rev.length===1 ? "1 revelada" : rev.length===2 ? "2 reveladas" : "Jugada";
+    box.innerHTML = rev.map(r=>{
+      const src = r.type==="mid" ? "centro" : pname(r.pid);
+      return `<div class="tstrip"><span class="tlab">${src}</span>${numCard(r.v,"small faceup")}</div>`;
+    }).join("") + `<div class="tstrip"><span class="tlab">${txt}</span></div>`;
   }
 
   function renderHand(){
     const box = $("trioHand");
-    if(state.phase !== "betting" || !myCards.length){ box.innerHTML = ""; return; }
-    box.innerHTML = '<span class="herolabel">TUS CARTAS</span>' + myCards.map(c=>cardHtml(c,"big dealt")).join("");
+    const m = me();
+    box.innerHTML = "";
+    if(!state || state.phase !== "playing" || !m || !Array.isArray(m.hand)) return;
+    box.innerHTML = '<span class="herolabel">TUS CARTAS</span>' + m.hand.map(v=>numCard(v,"big dealt")).join("");
   }
 
   function renderActions(){
@@ -859,47 +878,43 @@ const TO = (function(){
     if(current.admin){ box.innerHTML = '<div class="tbet-hint">La cuenta de administración no puede jugar.</div>'; return; }
     const ps = state.players || [];
     const m = me();
+    const n = ps.length;
 
-    if(state.phase === "betting"){
-      if(!m){
-        box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse · ante 10</button></div>`;
+    if(state.phase === "playing"){
+      if(!m){ box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse · ante 10</button></div>`; return; }
+      if(state.resolve_kind){
+        const kind = state.resolve_kind;
+        box.innerHTML = `<div class="tbet-hint">${kind==="mismatch" ? "No coinciden — se devuelven las cartas…" : (kind==="win" ? "¡Trió conseguido!" : "¡Jugada hecha!")}</div>`;
         return;
       }
-      if(m.folded){ box.innerHTML = '<div class="tbet-hint">Te retiraste de esta mano. Espera el resultado.</div>'; return; }
-      if(m.acted){ box.innerHTML = '<div class="tbet-hint">Esperando a los demás jugadores…</div>'; return; }
-      const bal = Math.max(0, Math.floor(Number(current.balance)||0));
-      const def = Math.min(10, bal);
-      box.innerHTML = `
-        <div class="tbet-bar">
-          <div class="tchips">
-            <button class="chipbtn" onclick="TO.amt(-10)">−10</button>
-            <button class="chipbtn" onclick="TO.setBet(10)">10</button>
-            <button class="chipbtn" onclick="TO.setBet(25)">25</button>
-            <button class="chipbtn" onclick="TO.setBet(50)">50</button>
-            <button class="chipbtn" onclick="TO.setBet(${bal})">TODO</button>
-          </div>
-          <div class="tbet-row">
-            <div class="tamt">
-              <button type="button" onclick="TO.amt(-10)">−</button>
-              <input id="trioBetAmt" type="number" min="0" max="${bal}" value="${def}">
-              <button type="button" onclick="TO.amt(10)">＋</button>
-            </div>
-            <button class="tbtn fold" onclick="TO.fold()">Retirarse</button>
-            <button class="tbtn check" onclick="TO.bet(0)">Pasar</button>
-            <button class="tbtn bet" onclick="TO.bet()">Apostar</button>
-          </div>
-        </div>`;
+      if(!myTurn()){
+        const who = ps[state.turn] || {};
+        box.innerHTML = `<div class="tbet-hint">Turno de <b>${escapeHtml(who.name||"?")}</b>… espera.</div>`;
+        return;
+      }
+      const cnt = (state.revealed||[]).length;
+      if(cnt >= 3){ box.innerHTML = '<div class="tbet-hint">Jugada resuelta…</div>'; return; }
+      const stage = cnt===0 ? "Revela la 1ª carta:" : cnt===1 ? "Revela la 2ª carta:" : "¡Coinciden! Revela la 3ª:";
+      const row = `<div class="tbet-label">${stage}</div>
+        <div class="tbet-hint" style="margin:4px 0 2px">Toca una carta del centro · o pide la más baja/alta a un jugador:</div>
+        <div class="askgrid">${ps.map(p=>`
+          <div class="task"><span>${escapeHtml(p.name)}${p.id===current.id?" (tú)":""}</span>
+            <button class="btnasm" onclick="TO.reveal('low','${p.id}')" ${(p.hand_len||0)<1?"disabled":""}>▽ baja</button>
+            <button class="btnasm" onclick="TO.reveal('high','${p.id}')" ${(p.hand_len||0)<1?"disabled":""}>△ alta</button>
+          </div>`).join("")}</div>`;
+      box.innerHTML = row;
       return;
     }
 
-    const n = ps.length;
     const seated = !!m;
     if(seated){
       box.innerHTML = `
         <div class="tbet-row">
-          <button class="tbtn bet" onclick="TO.deal()" ${n<2?"disabled":""}>🃏 Repartir · ante 10</button>
+          <button class="tbtn bet" onclick="TO.deal()" ${n<3?"disabled":""}>🃏 Repartir · ante 10</button>
           <button class="tbtn ghost2" onclick="TO.leave()">Levantarse</button>
-        </div>${n<2?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 2 jugadores para repartir.</div>':''}`;
+        </div>
+        ${n<3?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 3 jugadores para repartir.</div>':''}
+        ${state.phase==="done" && state.result ? `<div class="tbet-hint" style="margin-top:6px">Partida terminada. Reparte de nuevo para jugar otra mano.</div>` : ''}`;
     } else {
       box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse en la mesa</button></div>`;
     }
@@ -909,12 +924,16 @@ const TO = (function(){
     const box = $("trioResult");
     if(state.phase !== "done" || !state.result){ box.classList.add("hidden"); box.innerHTML=""; return; }
     const r = state.result;
-    let h = `<strong>🏆 ${escapeHtml(r.name || "Nadie")} gana ${Number(r.prize)||0} fichas</strong><br><span class="muted">Mano: ${escapeHtml(r.hand||"—")}</span>`;
-    if(Array.isArray(r.hands) && r.hands.length){
-      const win = r.winner;
-      h += '<div class="trio-hands">' + r.hands.map(x=>
-        `<div class="trio-h ${x.id===win?"win":""}"><div class="hname">${escapeHtml(x.name)}</div><div>${(x.cards||[]).map(c=>cardHtml(c,"small")).join("")}</div><div class="hh">${escapeHtml(x.hand||"")}</div></div>`
-      ).join("") + '</div>';
+    let h = `<strong>🏆 ${escapeHtml(r.name||"?")} gana ${Number(r.prize)||0} fichas</strong>
+      <br><span class="muted">${r.reason==="trio7" ? "¡Trío de 7 — victoria automática!" : "Completó 3 tríos."}</span>`;
+    if(Array.isArray(r.players) && r.players.length){
+      h += '<div class="trio-hands">' + r.players.map(x=>{
+        const isWin = x.id===r.winner;
+        const trios = (x.trios||[]).length ? makeTrioRow(x.trios) : '<div class="muted">sin tríos</div>';
+        const hand = (x.hand||[]).map(v=>numCard(v,"tiny")).join("");
+        return `<div class="trio-h ${isWin?"win":""}"><div class="hname">${escapeHtml(x.name)}</div>
+          <div>${trios}</div><div class="hhand">${hand||'<span class="muted">sin cartas</span>'}</div></div>`;
+      }).join('') + '</div>';
     }
     box.innerHTML = h;
     box.classList.remove("hidden");
@@ -923,9 +942,8 @@ const TO = (function(){
   function renderTimer(){
     const t = $("trioTimer");
     if(!t) return;
-    if(!state || state.phase !== "betting"){ t.textContent = "--"; return; }
-    const rem = Math.max(0, Number(state.round_end||0) - Date.now());
-    t.textContent = Math.ceil(rem/1000) + "s";
+    if(!state || state.phase !== "playing"){ t.textContent = "--"; return; }
+    t.textContent = Math.ceil(remMs()/1000) + "s";
   }
 
   function render(){
@@ -934,18 +952,29 @@ const TO = (function(){
     $("trioPot").textContent = Number(state.pot)||0;
     const badge = $("trioRound");
     if(badge){
-      if(state.phase === "betting") badge.textContent = "RONDA " + state.round + " / 3";
-      else if(state.phase === "done") badge.textContent = "MANO TERMINADA";
-      else badge.textContent = ps.length ? "LISTO PARA REPARTIR" : "ESPERANDO JUGADORES";
+      if(state.phase === "playing"){
+        const who = (ps[state.turn]||{}).name || "?";
+        badge.textContent = "TURNO: " + who;
+        badge.style.color = "#3ddc84";
+      } else if(state.phase === "done"){
+        badge.textContent = "PARTIDA TERMINADA";
+        badge.style.color = "#f5c451";
+      } else {
+        badge.textContent = ps.length ? "LISTO PARA REPARTIR" : "ESPERANDO JUGADORES";
+        badge.style.color = "";
+      }
     }
-    renderBoard(); renderSeats(); renderHand(); renderActions(); renderResult(); renderTimer();
+    renderBoard(); renderStrip(); renderSeats(); renderHand(); renderActions(); renderResult(); renderTimer();
   }
+
+  function doTick(){ renderTimer(); }
 
   function open(){
     $("trioGame").classList.remove("hidden");
     document.getElementById("mainGames").classList.add("hidden");
     if(!pollInt) pollInt = setInterval(sync, 1200);
-    lastSig = null; lastBoard = 0;
+    if(!timerInt) timerInt = setInterval(doTick, 350);
+    lastSig = null; lastSyncAt = Date.now();
     paintSound();
     sync(); window.scrollTo(0,0);
   }
@@ -953,62 +982,51 @@ const TO = (function(){
     $("trioGame").classList.add("hidden");
     document.getElementById("mainGames").classList.remove("hidden");
     if(pollInt){ clearInterval(pollInt); pollInt = null; }
-    state = null; myCards = []; prevPhase = null; people = null; lastSig = null; lastBoard = 0;
+    if(timerInt){ clearInterval(timerInt); timerInt = null; }
+    state = null; prevPhase = null; people = null; lastSig = null;
   }
 
   function guard(){ if(!current) return alert("Inicia sesión para jugar."); if(current.admin) return alert("La cuenta de administración no puede jugar."); return false; }
 
-  function setBet(v){
-    const el = $("trioBetAmt"); if(!el || !current) return;
-    const bal = Math.max(0, Math.floor(Number(current.balance)||0));
-    el.value = Math.max(0, Math.min(bal, Math.floor(Number(v)||0)));
-  }
-  function amt(d){
-    const el = $("trioBetAmt"); if(!el) return;
-    setBet((Math.floor(Number(el.value))||0) + d);
-  }
-
   async function join(){
     if(guard()) return;
-    try{ state = await sbRpc("trio_join", { p_user_id: current.id }); await ensurePeople(state.players||[]); render(); refreshBal(); }
+    try{ state = await sbRpc("trio_join", { p_user_id: current.id }); lastSyncAt=Date.now(); await ensurePeople(state.players||[]); render(); refreshBal(); }
     catch(e){ alert(e.message || "No se pudo sentar."); }
   }
   async function leave(){
     if(guard()) return;
-    try{ state = await sbRpc("trio_leave", { p_user_id: current.id }); myCards=[]; render(); refreshBal(); }
+    const m = me();
+    const warn = state && state.phase==="playing" && m ? "Si te levantas a mitad de partida pierdes tu ante y tus tríos van al montón. ¿Continuar?" : "¿Levantarte de la mesa?";
+    if(!confirm(warn)) return;
+    try{ state = await sbRpc("trio_leave", { p_user_id: current.id }); lastSyncAt=Date.now(); render(); refreshBal(); }
     catch(e){ alert(e.message || "No pudiste levantarte."); }
   }
   async function deal(){
     if(guard()) return;
     try{
-      myCards = []; lastBoard = 0;
-      state = await sbRpc("trio_deal", { p_now: Date.now() });
-      prevPhase = "betting"; await ensurePeople(state.players||[]); await loadCards(); render(); refreshBal();
+      state = await sbRpc("trio_deal", { p_user_id: current.id });
+      lastSyncAt=Date.now(); prevPhase="playing"; render(); refreshBal();
       chipSound(6); msg("");
     }catch(e){ alert(e.message || "No se pudo repartir."); }
   }
-  async function bet(amtV){
+  async function reveal(type, pid){
     if(guard()) return;
-    let v;
-    if(amtV === 0) v = 0;
-    else{
-      const el = $("trioBetAmt");
-      v = Math.floor(Number(el ? el.value : NaN));
-      if(!Number.isFinite(v) || v < 0) return alert("Escribe una apuesta válida (0 = pasar).");
-      if(v > Number(current.balance)) return alert("No tienes suficientes fichas.");
-    }
-    try{ state = await sbRpc("trio_bet", { p_user_id: current.id, p_amount: v, p_now: Date.now() }); render(); refreshBal(); }
-    catch(e){ alert(e.message || "No se pudo apostar."); }
+    try{
+      state = await sbRpc("trio_reveal", { p_user_id: current.id, p_type: type, p_pid: pid||"", p_idx: 0 });
+      lastSyncAt=Date.now(); render(); refreshBal();
+    }catch(e){ alert(e.message || "No se pudo revelar."); }
   }
-  async function fold(){
+  async function pickMid(idx){
     if(guard()) return;
-    if(!confirm("¿Retirarte de esta mano?")) return;
-    try{ state = await sbRpc("trio_fold", { p_user_id: current.id }); myCards=[]; render(); refreshBal(); }
-    catch(e){ alert(e.message || "No te pudiste retirar."); }
+    try{
+      state = await sbRpc("trio_reveal", { p_user_id: current.id, p_type: "mid", p_pid: "", p_idx: Number(idx) });
+      lastSyncAt=Date.now(); render(); refreshBal();
+    }catch(e){ alert(e.message || "No se pudo revelar."); }
   }
 
-  return {open,close,join,leave,deal,bet,fold,setBet,amt,toggleSound};
+  return {open,close,join,leave,deal,reveal,pickMid,toggleSound};
 })();
+
 
 /* ---------------- pestañas de acceso ---------------- */
 loginTab.onclick = ()=>{ loginBox.classList.remove("hidden"); regBox.classList.add("hidden"); loginTab.className="primary"; regTab.className="ghost"; };
