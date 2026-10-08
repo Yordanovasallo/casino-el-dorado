@@ -183,7 +183,6 @@ body{overflow-x:hidden}}
 #scratchMsg{border:1px solid rgba(245,196,81,.2);border-left:3px solid #f5c451;text-align:center}
 </style>
 <style id="trio-style">
-.trio-info{text-align:center;font-size:13px;margin:6px 0 4px;color:#9aa3b5}
 .trio-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .trio-top h2{margin:0}
 .trio-badges{margin-left:auto;display:flex;gap:8px}
@@ -305,6 +304,11 @@ body{overflow-x:hidden}}
 .trio-h .hhand{display:flex;gap:3px;justify-content:center;flex-wrap:wrap}
 
 
+/* Vista limpia de Trio: solo la mesa y lo del juego */
+.trioview .brand{display:none!important}
+.trioview .wrap{max-width:1500px;padding-top:6px}
+.trioview #app > .card:first-child{display:none!important}
+.trioview .trio-felt{max-height:calc(100vh - 158px);min-height:520px}
 @media (max-width:640px){
    .trio-felt{aspect-ratio:4/3;min-height:380px}
    .tseat{width:96px}
@@ -388,7 +392,6 @@ body{overflow-x:hidden}}
   <h2>🃏 Trio</h2>
   <div class="trio-badges"><button id="trioSnd" class="tsnd" onclick="TO.toggleSound()" title="Sonido">🔊</button><span id="trioTimer" class="pill gold">--</span></div>
 </div>
-<div class="trio-info">Juego de mesa Trio · 2-6 jugadores · La partida arranca sola al sentarse 2 · 36 cartas (1-12 × 3) · En tu turno revela 1 carta: del centro o pide la más baja/alta de un jugador (o tú) · 3 iguales = llevas el trío · Gana quien junta 3 tríos o el trío de 7 · Ante 10 · La casa retiene 1%</div>
 
 <div class="trio-felt" id="trioFelt">
   <div class="trio-center">
@@ -1392,6 +1395,7 @@ const TO = (function(){
   function open(){
     $("trioGame").classList.remove("hidden");
     document.getElementById("mainGames").classList.add("hidden");
+    document.body.classList.add("trioview");
     if(!pollInt) pollInt = setInterval(sync, 1200);
     if(!timerInt) timerInt = setInterval(doTick, 350);
     lastSig = null; lastSyncAt = Date.now();
@@ -1401,6 +1405,7 @@ const TO = (function(){
   function close(){
     $("trioGame").classList.add("hidden");
     document.getElementById("mainGames").classList.remove("hidden");
+    document.body.classList.remove("trioview");
     if(pollInt){ clearInterval(pollInt); pollInt = null; }
     if(timerInt){ clearInterval(timerInt); timerInt = null; }
     state = null; prevPhase = null; people = null; lastSig = null;

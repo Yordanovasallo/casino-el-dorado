@@ -972,6 +972,7 @@ const TO = (function(){
   function open(){
     $("trioGame").classList.remove("hidden");
     document.getElementById("mainGames").classList.add("hidden");
+    document.body.classList.add("trioview");
     if(!pollInt) pollInt = setInterval(sync, 1200);
     if(!timerInt) timerInt = setInterval(doTick, 350);
     lastSig = null; lastSyncAt = Date.now();
@@ -981,6 +982,7 @@ const TO = (function(){
   function close(){
     $("trioGame").classList.add("hidden");
     document.getElementById("mainGames").classList.remove("hidden");
+    document.body.classList.remove("trioview");
     if(pollInt){ clearInterval(pollInt); pollInt = null; }
     if(timerInt){ clearInterval(timerInt); timerInt = null; }
     state = null; prevPhase = null; people = null; lastSig = null;
