@@ -183,36 +183,105 @@ body{overflow-x:hidden}}
 #scratchMsg{border:1px solid rgba(245,196,81,.2);border-left:3px solid #f5c451;text-align:center}
 </style>
 <style id="trio-style">
-.trio-info{text-align:center;font-size:13px;margin:6px 0 4px}
-.trio-table{background:radial-gradient(ellipse at center,#146b3a 0,#0a3b22 70%);border:5px solid #6b5420;border-radius:200px/120px;padding:20px 14px;margin:14px 0;text-align:center;box-shadow:inset 0 0 40px #0008,0 0 24px rgba(245,196,81,.25)}
-.trio-status{display:flex;justify-content:space-around;gap:6px;margin-bottom:8px}
-.trio-status>div{text-align:center}
-.trio-status .muted{font-size:11px;letter-spacing:1px}
-.trio-pot{font-size:26px;font-weight:800;color:#f5c451;text-shadow:0 0 12px rgba(245,196,81,.5)}
-.trio-board{display:flex;gap:7px;justify-content:center;min-height:74px;align-items:center;flex-wrap:wrap;margin:6px 0}
-.trio-seats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px}
-.tseat{background:rgba(6,10,20,.72);border:2px solid #2b3b59;border-radius:12px;padding:8px 11px;min-width:104px;text-align:center;transition:.2s}
-.tseat.me{border-color:#f5c451;box-shadow:0 0 14px rgba(245,196,81,.4)}
-.tseat.folded{opacity:.45;filter:grayscale(1)}
-.tseat strong{font-size:14px}
-.tseat .muted{font-size:12px}
-.tseat>div:last-child{font-size:11px;margin-top:2px}
-.tcard{width:54px;height:76px;border-radius:8px;background:#f7f4ee;color:#15203a;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;font-size:19px;line-height:1.05;box-shadow:0 3px 8px #0008;position:relative;flex:0 0 auto}
-.tcard .tcs{font-size:26px}
+.trio-info{text-align:center;font-size:13px;margin:6px 0 4px;color:#9aa3b5}
+.trio-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.trio-top h2{margin:0}
+.trio-badges{margin-left:auto;display:flex;gap:8px}
+.pill{background:#131a2c;border:1px solid #2b3b59;border-radius:999px;padding:5px 14px;font-weight:800;font-size:13px;color:#e8ecf5;white-space:nowrap}
+.pill.gold{border-color:#f5c451;color:#f5c451;box-shadow:0 0 12px rgba(245,196,81,.25)}
+
+/* ===== Mesa oval estilo GGPoker ===== */
+.trio-felt{
+  position:relative;width:100%;aspect-ratio:16/9;min-height:320px;max-height:60vh;
+  border-radius:50%/50%;margin:16px auto;
+  background:radial-gradient(ellipse at 50% 40%,#1f7a52 0%,#14603e 45%,#0b3f28 78%,#062a1b 100%);
+  box-shadow:0 0 0 6px #3a2c14,0 0 0 10px #6b5420,0 0 0 13px #241b0d,0 18px 44px #000b,inset 0 0 70px #0007;
+  overflow:visible;
+}
+.trio-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;pointer-events:none;width:70%}
+.trio-pot{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border:1px solid rgba(245,196,81,.55);border-radius:999px;padding:7px 20px;font-weight:900;font-size:24px;color:#f5c451;text-shadow:0 0 12px rgba(245,196,81,.55);letter-spacing:.5px}
+.trio-pot .plabel{font-size:11px;letter-spacing:2px;color:#c9b47a;font-weight:800}
+.trio-board{display:flex;gap:9px;justify-content:center;align-items:center;min-height:80px;margin-top:14px}
+.trio-roundbadge{display:inline-block;margin-top:6px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 14px;font-size:12px;font-weight:800;color:#cbd3e1;letter-spacing:1px}
+
+/* ===== Asientos alrededor de la mesa ===== */
+.tseat{position:absolute;transform:translate(-50%,-50%);width:96px;text-align:center;z-index:3;transition:filter .3s,opacity .3s}
+.tav-wrap{position:relative;width:56px;height:56px;margin:0 auto}
+.tav{width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid #33456b;background:#131a2c;box-shadow:0 4px 12px #000a,inset 0 0 0 2px #00000055}
+.tav img{width:100%;height:100%;object-fit:cover;display:block}
+.tseat.me .tav{border-color:#f5c451}
+.tseat.turn .tav{border-color:#3ddc84}
+.tseat.folded{filter:grayscale(1);opacity:.45}
+.tseat.winner .tav{border-color:#f5c451;box-shadow:0 0 24px #f5c451}
+.tring{position:absolute;inset:-6px;border-radius:50%;pointer-events:none;
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));
+  transition:background .3s linear}
+.tdealer{position:absolute;right:-7px;top:-7px;width:21px;height:21px;border-radius:50%;background:linear-gradient(180deg,#f7d774,#d9a928);color:#1a1206;font-weight:900;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px #000;border:1px solid #fff8}
+.tname{display:inline-block;margin-top:6px;background:rgba(6,10,20,.88);border:1px solid #2b3b59;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:800;color:#e8ecf5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tseat.me .tname{border-color:#f5c451;color:#f5c451}
+.tstack{font-size:12px;font-weight:900;color:#f5c451;margin-top:3px;text-shadow:0 1px 3px #000}
+.tbet{display:inline-block;background:linear-gradient(180deg,#1f9d55,#157a40);border:1px solid #3ddc84;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:900;color:#eafff3;margin-top:3px;box-shadow:0 2px 6px #0008}
+.tstatus{font-size:10px;color:#9aa3b5;margin-top:3px;min-height:12px;font-weight:700;letter-spacing:.3px}
+.tseat.winner .tname{background:#3a2c05;border-color:#f5c451;color:#f5c451}
+.tpot-fly{position:absolute;left:50%;top:-8px;transform:translateX(-50%);font-size:11px;color:#3ddc84;font-weight:900;pointer-events:none}
+
+/* ===== Cartas ===== */
+.tcard{width:54px;height:78px;border-radius:8px;background:linear-gradient(160deg,#fff,#eceae4);color:#15203a;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;font-size:20px;line-height:1.05;box-shadow:0 5px 14px #0009;position:relative;flex:0 0 auto;border:1px solid #00000022}
+.tcard .tcs{font-size:28px}
 .tcard.red{color:#c0392b}
-.tcard.small{width:40px;height:56px;font-size:14px}
-.tcard.small .tcs{font-size:18px}
-.tcard.back{background:repeating-linear-gradient(45deg,#263552 0 7px,#1a2embed 7px 14px);border:2px solid #f5c451}
-.tcard.back{background:repeating-linear-gradient(45deg,#263552 0 7px,#1b2embed 7px 14px)}
-.tcard.back{background:#263552;background-image:repeating-linear-gradient(45deg,#33456b 0 6px,#263552 6px 12px);border:2px solid #f5c451}
-.trio-hand{display:flex;gap:8px;justify-content:center;align-items:flex-end;min-height:82px;margin:8px 0}
+.tcard.small{width:38px;height:54px;font-size:14px}
+.tcard.small .tcs{font-size:19px}
+.tcard.back{background:#1e2c4a;background-image:repeating-linear-gradient(45deg,#33456b 0 6px,#1e2c4a 6px 12px);border:2px solid #f5c451;color:transparent}
+.tcard.big{width:66px;height:94px;font-size:24px}
+.tcard.big .tcs{font-size:34px}
+.tcard.dealt{animation:dealIn .35s cubic-bezier(.2,.8,.3,1.1) backwards}
+@keyframes dealIn{from{transform:translateY(-26px) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+
+/* ===== Cartas del héroe + barra de acciones ===== */
+.trio-hand{display:flex;gap:12px;justify-content:center;align-items:center;min-height:100px;margin:14px 0 4px;position:relative}
+.trio-hand .herolabel{position:absolute;top:-2px;font-size:11px;letter-spacing:2px;color:#9aa3b5;font-weight:800}
 .trio-hand .muted{align-self:center}
-.trio-actions{margin-top:8px}
-.trio-actions .grid{gap:8px}
-#trioResult{text-align:center;border-left:3px solid #f5c451}
-.trio-hands{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:10px}
-.trio-h{background:#0a1120;border:1px solid #263552;border-radius:10px;padding:7px 9px;display:flex;flex-direction:column;align-items:center;gap:5px}
-.trio-h .tcard{box-shadow:0 2px 5px #000}
+.trio-actions{margin-top:6px}
+.tbet-bar{display:flex;flex-direction:column;gap:10px;align-items:center}
+.tbet-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+.tamt{display:flex;align-items:center;gap:6px;background:#131a2c;border:1px solid #2b3b59;border-radius:12px;padding:6px 8px}
+.tamt button{width:34px;height:34px;border-radius:9px;border:none;background:#22304d;color:#e8ecf5;font-size:18px;font-weight:900;cursor:pointer}
+.tamt button:hover{background:#2d3f66}
+.tamt input{width:96px;text-align:center;background:#0a1120;border:1px solid #2b3b59;border-radius:9px;color:#f5c451;font-size:18px;font-weight:900;padding:6px 4px}
+.tchips{display:flex;gap:7px}
+.chipbtn{border:1px solid #3ddc84;background:linear-gradient(180deg,rgba(46,204,113,.22),rgba(46,204,113,.08));color:#8ff0bd;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:900;cursor:pointer}
+.chipbtn:hover{background:rgba(46,204,113,.35)}
+.tbtn{border:none;border-radius:13px;padding:14px 20px;font-weight:900;font-size:15px;color:#fff;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4),0 7px 16px #0008;transition:.1s;text-transform:uppercase;letter-spacing:.6px;min-width:118px}
+.tbtn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.tbtn.fold{background:linear-gradient(180deg,#d8534b,#99302a)}
+.tbtn.check{background:linear-gradient(180deg,#4a5b85,#33405f)}
+.tbtn.bet{background:linear-gradient(180deg,#34d17a,#1f9d55)}
+.tbtn.ghost2{background:linear-gradient(180deg,#2a3552,#1d2740);box-shadow:0 4px 0 rgba(0,0,0,.4)}
+.tbtn:disabled{opacity:.4;filter:grayscale(.7);cursor:not-allowed;transform:none}
+.tbet-hint{font-size:12px;color:#9aa3b5;text-align:center;font-weight:700}
+
+#trioResult{text-align:center;border-left:3px solid #f5c451;background:linear-gradient(180deg,#1a1608,#131a2c)}
+.trio-hands{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.trio-h{background:#0a1120;border:1px solid #263552;border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.trio-h.win{border-color:#f5c451;box-shadow:0 0 16px rgba(245,196,81,.35)}
+.trio-h .hname{font-size:12px;font-weight:900;color:#e8ecf5}
+.trio-h .hh{font-size:12px;font-weight:900;color:#f5c451}
+
+@media (max-width:640px){
+  .trio-felt{aspect-ratio:4/3;min-height:300px}
+  .tseat{width:82px}
+  .tav-wrap{width:46px;height:46px}
+  .tav{width:46px;height:46px}
+  .tname{font-size:11px;padding:1px 7px}
+  .tstack{font-size:11px}
+  .trio-pot{font-size:19px;padding:6px 15px}
+  .tbtn{min-width:0;flex:1;padding:13px 10px;font-size:13px}
+  .tamt input{width:74px;font-size:16px}
+  .tcard{width:46px;height:66px;font-size:17px}
+  .tcard .tcs{font-size:23px}
+  .tcard.big{width:56px;height:80px;font-size:20px}
+}
 </style>
 </head>
 <body>
@@ -277,18 +346,22 @@ body{overflow-x:hidden}}
 </div></section>
 
 <section id="trioGame" class="card hidden">
-<div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="TO.close()">← Volver</button><h2 style="margin:0">🃏 Trío y Par</h2></div>
-<div class="trio-info muted">Mesa multijugador · Ante 10 fichas · Gana la mejor mano de 3 + 2 comunitarias · La casa retiene 1% del bote</div>
-<div class="trio-table">
-  <div class="trio-status">
-    <div><div class="muted">BOTE</div><div id="trioPot" class="trio-pot">0</div></div>
-    <div><div class="muted">RONDA</div><div id="trioRound" style="font-size:22px;font-weight:800;color:#e8ecf5">—</div></div>
-    <div><div class="muted">TIEMPO</div><div id="trioTimer" style="font-size:22px;font-weight:800;color:#f5c451">--</div></div>
-  </div>
-  <div class="muted" style="font-size:12px">Cartas comunitarias</div>
-  <div id="trioBoard" class="trio-board"></div>
-  <div id="trioSeats" class="trio-seats"></div>
+<div class="trio-top">
+  <button class="ghost" style="width:auto" onclick="TO.close()">← Volver</button>
+  <h2>🃏 Trío y Par</h2>
+  <div class="trio-badges"><span id="trioTimer" class="pill gold">--</span></div>
 </div>
+<div class="trio-info">Mesa multijugador · Ante 10 fichas · 3 rondas con tiempo · Mejor mano con tus 3 cartas + 2 comunitarias · La casa retiene 1% del bote</div>
+
+<div class="trio-felt" id="trioFelt">
+  <div class="trio-center">
+    <div class="trio-pot"><span class="plabel">BOTE</span><span id="trioPot">0</span></div>
+    <div id="trioBoard" class="trio-board"></div>
+    <div id="trioRound" class="trio-roundbadge">Esperando jugadores</div>
+  </div>
+  <div id="trioSeats"></div>
+</div>
+
 <div id="trioHand" class="trio-hand"></div>
 <div id="trioActions" class="trio-actions"></div>
 <div id="trioResult" class="notice hidden" style="margin-top:10px"></div>
@@ -942,12 +1015,14 @@ const SC = (function(){
   return {open,close,buy,reveal};
 })();
 
-/* ---------------- Trío y Par (multijugador) ---------------- */
+/* ---------------- Trío y Par (multijugador, estilo GGPoker) ---------------- */
 const TO = (function(){
   const $ = n=>document.getElementById(n);
   const RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
   const SUITS = ["♠","♥","♦","♣"];
+  const ROUND_MS = 45000;
   let state=null, myCards=[], pollInt=null, busy=false, prevPhase=null;
+  let people=null, lastSig=null, lastBoard=0;
 
   function cardHtml(c, cls){
     c = Number(c);
@@ -960,6 +1035,20 @@ const TO = (function(){
     return (state.players||[]).find(p=>p.id===current.id) || null;
   }
   function msg(t){ const b=$("trioMsg"); if(b) b.innerHTML = t || ""; }
+  function ringColor(p){ return p > 50 ? "#3ddc84" : p > 25 ? "#f5c451" : "#ff6b5e"; }
+
+  /* Avatares y fichas de los jugadores sentados (v_users, legible por anon) */
+  async function ensurePeople(ps){
+    if(!people) people = {};
+    if(!ps.length) return;
+    const need = ps.map(p=>p.id).filter(id=>!(id in people));
+    if(!need.length) return;
+    try{
+      const rows = await sbRead("v_users?select=id,avatar,balance&id=in.(" + need.map(x=>encodeURIComponent(x)).join(",") + ")");
+      (rows||[]).forEach(r=>{ people[r.id] = { avatar: r.avatar || "", balance: Number(r.balance)||0 }; });
+    }catch(e){ console.warn("trio people:", e.message); }
+    need.forEach(id=>{ if(!(id in people)) people[id] = { avatar:"", balance:null }; });
+  }
 
   async function loadCards(){
     myCards = [];
@@ -981,6 +1070,13 @@ const TO = (function(){
         else if(ph !== "betting"){ myCards = []; }
         prevPhase = ph;
         state = st;
+        const ps = st.players || [];
+        const sig = ph + "|" + st.round + "|" + st.pot + "|" + ps.map(p=>p.id).sort().join(",");
+        if(sig !== lastSig){ lastSig = sig; await ensurePeople(ps); }
+        if(current && people && people[current.id]){
+          people[current.id].balance = current.balance;
+          if(current.avatar) people[current.id].avatar = current.avatar;
+        }
         render();
         if(current) refreshBal();
       }
@@ -991,80 +1087,134 @@ const TO = (function(){
   function refreshBal(){
     if(!current) return;
     sbRpc("get_user", { p_id: current.id }).then(u=>{
-      if(u && u.id){ current.balance = u.balance; updateBalanceUI(); }
+      if(u && u.id){ current.balance = u.balance; if(people && people[u.id]) people[u.id].balance = u.balance; updateBalanceUI(); }
     }).catch(()=>{});
   }
 
-  function renderSeats(){
+  /* Asientos repartidos en elipse, tú siempre abajo (estilo GGPoker) */
+  function seatLayout(){
     const ps = state.players || [];
+    const n = ps.length;
+    if(!n) return [];
+    let myIdx = ps.findIndex(p=>current && p.id===current.id);
+    if(myIdx < 0) myIdx = 0;
     const dealer = Number(state.dealer) || 0;
-    if(!ps.length){ $("trioSeats").innerHTML = '<div class="muted">Nadie sentado aún. Sé el primero.</div>'; return; }
-    $("trioSeats").innerHTML = ps.map((p,i)=>{
-      const isMe = current && p.id === current.id;
-      const st = p.folded ? '<span class="bad">retirado</span>'
-                : p.acted ? '<span class="ok">✓ listo</span>'
-                : '<span class="muted">pensando…</span>';
-      return `<div class="tseat ${isMe?"me":""} ${p.folded?"folded":""}">
-        <div>${i===dealer?"🎩 ":""}<strong>${escapeHtml(p.name)}</strong>${isMe?" (tú)":""}</div>
-        <div class="muted">Ronda: ${Number(p.bet)||0}</div>
-        <div>${st}</div></div>`;
+    const betting = state.phase === "betting";
+    const rem = betting ? Math.max(0, Number(state.round_end||0) - Date.now()) : 0;
+    const pct = betting ? Math.min(100, Math.max(0, (rem/ROUND_MS)*100)) : 0;
+    const out = [];
+    for(let k=0;k<n;k++){
+      const j = (myIdx + k) % n;
+      const p = ps[j];
+      const ang = (90 + k*(360/n)) * Math.PI/180;
+      out.push({
+        p, j,
+        x: 50 + 38*Math.cos(ang),
+        y: 50 + 35*Math.sin(ang),
+        isMe: !!(current && p.id === current.id),
+        turn: betting && !p.folded && !p.acted,
+        dealer: j === dealer,
+        pct
+      });
+    }
+    return out;
+  }
+
+  function winnerId(){
+    return (state.phase === "done" && state.result && state.result.winner) ? state.result.winner : null;
+  }
+
+  function renderSeats(){
+    const box = $("trioSeats");
+    const seats = seatLayout();
+    if(!seats.length){ box.innerHTML = ""; return; }
+    const win = winnerId();
+    box.innerHTML = seats.map(s=>{
+      const p = s.p;
+      const info = (people && people[p.id]) || {};
+      const av = info.avatar || defaultAvatar();
+      const stack = (info.balance != null) ? info.balance : "…";
+      const ring = s.turn ? `<div class="tring" style="background:conic-gradient(${ringColor(s.pct)} ${s.pct}%, rgba(255,255,255,.14) 0)"></div>` : "";
+      const dlr = s.dealer ? `<div class="tdealer">D</div>` : "";
+      const bet = Number(p.bet) || 0;
+      const betHtml = bet > 0 ? `<div class="tbet">+${bet}</div>` : `<div class="tbet" style="visibility:hidden">+0</div>`;
+      const status = p.folded ? "RETIRADO" : (s.turn ? "· · ·" : (p.acted ? "✓ LISTO" : ""));
+      const cls = ["tseat", s.isMe?"me":"", s.turn?"turn":"", p.folded?"folded":"", (win && p.id===win)?"winner":""].join(" ");
+      return `<div class="${cls}" style="left:${s.x}%;top:${s.y}%">
+        <div class="tav-wrap"><div class="tav"><img src="${av}" alt=""></div>${ring}${dlr}</div>
+        <div class="tname">${escapeHtml(p.name)}${s.isMe?" (tú)":""}</div>
+        <div class="tstack">🪙 ${stack}</div>
+        ${betHtml}
+        <div class="tstatus">${status}</div>
+      </div>`;
     }).join("");
   }
 
   function renderBoard(){
     const bd = state.board || [];
-    let h = bd.map(c=>cardHtml(c,"")).join("");
-    for(let i = bd.length; i < 2; i++) h += '<div class="tcard back"></div>';
+    let h = "";
+    for(let i=0;i<bd.length;i++) h += cardHtml(bd[i], i >= lastBoard ? "dealt" : "");
+    for(let i=bd.length;i<2;i++) h += '<div class="tcard back"></div>';
+    lastBoard = bd.length;
     $("trioBoard").innerHTML = h;
   }
 
   function renderHand(){
     const box = $("trioHand");
     if(state.phase !== "betting" || !myCards.length){ box.innerHTML = ""; return; }
-    box.innerHTML = '<div class="muted" style="align-self:center">Tus cartas</div>' + myCards.map(c=>cardHtml(c,"")).join("");
+    box.innerHTML = '<span class="herolabel">TUS CARTAS</span>' + myCards.map(c=>cardHtml(c,"big dealt")).join("");
   }
 
   function renderActions(){
     const box = $("trioActions");
     if(!current){ box.innerHTML = ""; return; }
-    if(current.admin){ box.innerHTML = '<div class="muted" style="text-align:center">La cuenta de administración no puede jugar.</div>'; return; }
+    if(current.admin){ box.innerHTML = '<div class="tbet-hint">La cuenta de administración no puede jugar.</div>'; return; }
     const ps = state.players || [];
     const m = me();
 
     if(state.phase === "betting"){
       if(!m){
-        box.innerHTML = `<button class="primary" style="width:100%" onclick="TO.join()">🪑 Sentarse en la mesa (ante 10)</button>`;
+        box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse · ante 10</button></div>`;
         return;
       }
-      if(m.folded){
-        box.innerHTML = '<div class="muted" style="text-align:center">Te retiraste de esta mano. Espera el resultado.</div>';
-        return;
-      }
-      if(m.acted){
-        box.innerHTML = '<div class="muted" style="text-align:center">Esperando a los demás jugadores…</div>';
-        return;
-      }
+      if(m.folded){ box.innerHTML = '<div class="tbet-hint">Te retiraste de esta mano. Espera el resultado.</div>'; return; }
+      if(m.acted){ box.innerHTML = '<div class="tbet-hint">Esperando a los demás jugadores…</div>'; return; }
+      const bal = Math.max(0, Math.floor(Number(current.balance)||0));
+      const def = Math.min(10, bal);
       box.innerHTML = `
-        <div class="muted" style="text-align:center;margin-bottom:6px">Tu turno · Ronda ${state.round}/3 — apuesta, pasa (0) o retírate</div>
-        <input id="trioBetAmt" type="number" min="0" max="${Number(current.balance)||0}" value="10" style="text-align:center">
-        <div class="grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:8px">
-          <button class="primary" onclick="TO.bet()">Apostar</button>
-          <button class="ghost" onclick="TO.bet(0)">Pasar</button>
-          <button class="danger" onclick="TO.fold()">Retirarse</button>
+        <div class="tbet-bar">
+          <div class="tchips">
+            <button class="chipbtn" onclick="TO.amt(-10)">−10</button>
+            <button class="chipbtn" onclick="TO.setBet(10)">10</button>
+            <button class="chipbtn" onclick="TO.setBet(25)">25</button>
+            <button class="chipbtn" onclick="TO.setBet(50)">50</button>
+            <button class="chipbtn" onclick="TO.setBet(${bal})">TODO</button>
+          </div>
+          <div class="tbet-row">
+            <div class="tamt">
+              <button type="button" onclick="TO.amt(-10)">−</button>
+              <input id="trioBetAmt" type="number" min="0" max="${bal}" value="${def}">
+              <button type="button" onclick="TO.amt(10)">＋</button>
+            </div>
+            <button class="tbtn fold" onclick="TO.fold()">Retirarse</button>
+            <button class="tbtn check" onclick="TO.bet(0)">Pasar</button>
+            <button class="tbtn bet" onclick="TO.bet()">Apostar</button>
+          </div>
         </div>`;
       return;
     }
 
-    // waiting o done
     const n = ps.length;
     const seated = !!m;
-    let h = seated
-      ? `<div class="grid" style="grid-template-columns:1fr 1fr">
-           <button class="primary" onclick="TO.deal()" ${n<2?"disabled":""}>🃏 Repartir (ante 10)</button>
-           <button class="ghost" onclick="TO.leave()">Levantarse</button></div>`
-      : `<button class="primary" style="width:100%" onclick="TO.join()">🪑 Sentarse en la mesa</button>`;
-    if(seated && n < 2) h += '<div class="muted" style="text-align:center;margin-top:6px">Se necesitan al menos 2 jugadores para repartir.</div>';
-    box.innerHTML = h;
+    if(seated){
+      box.innerHTML = `
+        <div class="tbet-row">
+          <button class="tbtn bet" onclick="TO.deal()" ${n<2?"disabled":""}>🃏 Repartir · ante 10</button>
+          <button class="tbtn ghost2" onclick="TO.leave()">Levantarse</button>
+        </div>${n<2?'<div class="tbet-hint" style="margin-top:8px">Se necesitan al menos 2 jugadores para repartir.</div>':''}`;
+    } else {
+      box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="TO.join()">🪑 Sentarse en la mesa</button></div>`;
+    }
   }
 
   function renderResult(){
@@ -1073,8 +1223,9 @@ const TO = (function(){
     const r = state.result;
     let h = `<strong>🏆 ${escapeHtml(r.name || "Nadie")} gana ${Number(r.prize)||0} fichas</strong><br><span class="muted">Mano: ${escapeHtml(r.hand||"—")}</span>`;
     if(Array.isArray(r.hands) && r.hands.length){
+      const win = r.winner;
       h += '<div class="trio-hands">' + r.hands.map(x=>
-        `<div class="trio-h"><div>${escapeHtml(x.name)}</div><div>${(x.cards||[]).map(c=>cardHtml(c,"small")).join("")}</div><b>${escapeHtml(x.hand||"")}</b></div>`
+        `<div class="trio-h ${x.id===win?"win":""}"><div class="hname">${escapeHtml(x.name)}</div><div>${(x.cards||[]).map(c=>cardHtml(c,"small")).join("")}</div><div class="hh">${escapeHtml(x.hand||"")}</div></div>`
       ).join("") + '</div>';
     }
     box.innerHTML = h;
@@ -1091,8 +1242,14 @@ const TO = (function(){
 
   function render(){
     if(!state) return;
+    const ps = state.players || [];
     $("trioPot").textContent = Number(state.pot)||0;
-    $("trioRound").textContent = state.phase === "betting" ? ("Ronda " + state.round + "/3") : (state.phase === "done" ? "Terminada" : "Esperando");
+    const badge = $("trioRound");
+    if(badge){
+      if(state.phase === "betting") badge.textContent = "RONDA " + state.round + " / 3";
+      else if(state.phase === "done") badge.textContent = "MANO TERMINADA";
+      else badge.textContent = ps.length ? "LISTO PARA REPARTIR" : "ESPERANDO JUGADORES";
+    }
     renderBoard(); renderSeats(); renderHand(); renderActions(); renderResult(); renderTimer();
   }
 
@@ -1100,20 +1257,31 @@ const TO = (function(){
     $("trioGame").classList.remove("hidden");
     document.getElementById("mainGames").classList.add("hidden");
     if(!pollInt) pollInt = setInterval(sync, 1200);
+    lastSig = null; lastBoard = 0;
     sync(); window.scrollTo(0,0);
   }
   function close(){
     $("trioGame").classList.add("hidden");
     document.getElementById("mainGames").classList.remove("hidden");
     if(pollInt){ clearInterval(pollInt); pollInt = null; }
-    state = null; myCards = []; prevPhase = null;
+    state = null; myCards = []; prevPhase = null; people = null; lastSig = null; lastBoard = 0;
   }
 
   function guard(){ if(!current) return alert("Inicia sesión para jugar."); if(current.admin) return alert("La cuenta de administración no puede jugar."); return false; }
 
+  function setBet(v){
+    const el = $("trioBetAmt"); if(!el || !current) return;
+    const bal = Math.max(0, Math.floor(Number(current.balance)||0));
+    el.value = Math.max(0, Math.min(bal, Math.floor(Number(v)||0)));
+  }
+  function amt(d){
+    const el = $("trioBetAmt"); if(!el) return;
+    setBet((Math.floor(Number(el.value))||0) + d);
+  }
+
   async function join(){
     if(guard()) return;
-    try{ state = await sbRpc("trio_join", { p_user_id: current.id }); render(); refreshBal(); }
+    try{ state = await sbRpc("trio_join", { p_user_id: current.id }); await ensurePeople(state.players||[]); render(); refreshBal(); }
     catch(e){ alert(e.message || "No se pudo sentar."); }
   }
   async function leave(){
@@ -1124,16 +1292,16 @@ const TO = (function(){
   async function deal(){
     if(guard()) return;
     try{
-      myCards = [];
+      myCards = []; lastBoard = 0;
       state = await sbRpc("trio_deal", { p_now: Date.now() });
-      prevPhase = "betting"; await loadCards(); render(); refreshBal();
+      prevPhase = "betting"; await ensurePeople(state.players||[]); await loadCards(); render(); refreshBal();
       msg("");
     }catch(e){ alert(e.message || "No se pudo repartir."); }
   }
-  async function bet(amt){
+  async function bet(amtV){
     if(guard()) return;
     let v;
-    if(amt === 0) v = 0;
+    if(amtV === 0) v = 0;
     else{
       const el = $("trioBetAmt");
       v = Math.floor(Number(el ? el.value : NaN));
@@ -1150,7 +1318,7 @@ const TO = (function(){
     catch(e){ alert(e.message || "No te pudiste retirar."); }
   }
 
-  return {open,close,join,leave,deal,bet,fold};
+  return {open,close,join,leave,deal,bet,fold,setBet,amt};
 })();
 
 /* ---------------- pestañas de acceso ---------------- */
