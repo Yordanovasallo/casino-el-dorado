@@ -254,6 +254,7 @@ body{overflow-x:hidden}}
 
 
 
+
 <script>
 /* ================================================================
    CAPA SUPABASE (PostgREST + RPC)
@@ -270,7 +271,7 @@ const NEW_ROUND_DELAY = 12000;
 
 async function api(path, opts){
   const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), 10000);
+  const t = setTimeout(()=>ctrl.abort(), 20000);
   try{
     const r = await fetch(SB_URL + path, {
       ...opts,
@@ -334,13 +335,18 @@ function bannerConexion(html, esError){
 }
 
 async function diagnosticoSupabase(){
-  const timeout = new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout",message:"Sin respuesta tras 8 segundos"}), 8000));
-  try{
-    await Promise.race([ sbRead("v_users?select=id&limit=1"), timeout ]);
-    bannerConexion("✅ Conectado al servidor correctamente. ¡Todo listo!", false);
-  }catch(e){
-    bannerConexion("⚠️ Sin conexión con el servidor &nbsp;<b>("+((e&&e.code)||"error")+")</b>: "+escapeHtml(msgDeError(e))+
-      "<br>Prueba con <b>datos móviles</b> en vez de WiFi, o desactiva <b>VPN / adblock</b>. El WiFi de colegios o trabajos suele bloquearlo.", true);
+  /* reintenta hasta 3 veces porque en redes lentas la 1ª petición tarda más */
+  for(let i=1;i<=3;i++){
+    const timeout = new Promise((_,rej)=>setTimeout(()=>rej({code:"timeout",message:"Sin respuesta tras 20 segundos"}), 20000));
+    try{
+      await Promise.race([ sbRead("v_users?select=id&limit=1"), timeout ]);
+      bannerConexion("✅ Conectado al servidor correctamente. ¡Todo listo!", false);
+      return;
+    }catch(e){
+      if(i<3){ await new Promise(r=>setTimeout(r,1500)); continue; }
+      bannerConexion("⚠️ Sin conexión con el servidor &nbsp;<b>("+((e&&e.code)||"error")+")</b>: "+escapeHtml(msgDeError(e))+
+        "<br>Prueba con <b>datos móviles</b> en vez de WiFi, o desactiva <b>VPN / adblock</b>. A veces la 1ª conexión en redes lentas tarda unos segundos: recarga la página.", true);
+    }
   }
 }
 
