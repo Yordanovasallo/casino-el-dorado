@@ -281,7 +281,10 @@ function renderAdmin(){
   const pl = usersCache.filter(u=>!u.admin);
   document.getElementById("adminUsers").textContent = pl.length;
   document.getElementById("adminBalance").textContent = pl.reduce((s,u)=>s+(u.balance||0),0);
-  document.getElementById("adminTarget").innerHTML = pl.map(u=>`<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} — ${escapeHtml(u.id)} — ${u.balance} fichas</option>`).join("");
+  const sel = document.getElementById("adminTarget");
+  const keep = sel && sel.value;
+  sel.innerHTML = pl.map(u=>`<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} — ${escapeHtml(u.id)} — ${u.balance} fichas</option>`).join("");
+  if(keep && [...sel.options].some(o=>o.value===keep)) sel.value = keep;
   renderScratchStats();
   document.getElementById("ledger").innerHTML = ledgerDataHtml();
 }
@@ -294,11 +297,15 @@ function renderScratchStats(){
 }
 
 async function adminAdjust(sign){
-  const toId = adminTarget.value, a = Number(adminAmount.value);
-  if(!toId || !Number.isFinite(a) || a<=0) return alert("Selecciona un usuario y una cantidad válida.");
+  const toId = adminTarget.value;
+  const a = Math.floor(Number(adminAmount.value));
+  if(!toId) return alert("No hay usuarios para ajustar. Crea una cuenta primero.");
+  if(!Number.isFinite(a) || a<=0) return alert("Escribe una cantidad válida en fichas (número entero mayor que 0).");
   try{
     await sbRpc("admin_adjust", { p_to: toId, p_amount: a, p_sign: sign, p_now: Date.now() });
     adminAmount.value = "";
+    refreshAdmin();
+    alert((sign>0?"Se sumaron ":"Se quitaron ")+a+" fichas.");
   }catch(e){ alert(e.message||"Error al ajustar fichas."); }
 }
 
