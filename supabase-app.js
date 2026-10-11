@@ -633,6 +633,206 @@ const SC = (function(){
 })();
 
 
+/* ================================================================
+   APUESTAS DEPORTIVAS (The Odds API + Supabase)
+   Las cuotas y resultados los trae el servidor; aquí solo se apuesta
+   sobre el saldo de fichas del casino.
+   ================================================================ */
+const BETS = (function(){
+  const $ = n => document.getElementById(n);
+  let data = null, timer = null, busy = false, sel = null, adminInfoDone = false;
+
+  function fmtWhen(ms){
+    if(!ms) return "";
+    const d = new Date(ms);
+    return d.toLocaleDateString("es", {weekday:"short", day:"2-digit", month:"short"}) + " " +
+           d.toLocaleTimeString("es", {hour:"2-digit", minute:"2-digit"});
+  }
+  function fmtUpd(ms){
+    if(!ms) return "—";
+    const s = Math.floor((Date.now() - ms)/1000);
+    if(s < 60) return "hace un momento";
+    if(s < 3600) return "hace " + Math.floor(s/60) + " min";
+    if(s < 86400) return "hace " + Math.floor(s/3600) + " h";
+    return "hace " + Math.floor(s/86400) + " días";
+  }
+  const msg = (t, html)=>{ const m=$("betMsg"); if(!m) return; if(html) m.innerHTML=t; else m.textContent=t; m.classList.remove("hidden"); };
+  const hideBar = ()=>{ sel=null; const b=$("betBar"); if(b) b.classList.add("hidden"); };
+
+  function open(){
+    $("betGame").classList.remove("hidden");
+    $("mainGames").classList.add("hidden");
+    hideBar();
+    msg("⏳ Cargando partidos…");
+    load();
+    if(timer) clearInterval(timer);
+    timer = setInterval(()=>{ if($("betGame") && !$("betGame").classList.contains("hidden")) load(true); }, 20000);
+    window.scrollTo(0,0);
+  }
+  function close(){
+    $("betGame").classList.add("hidden");
+    $("mainGames").classList.remove("hidden");
+    if(timer){ clearInterval(timer); timer = null; }
+    hideBar();
+  }
+
+  async function load(silent){
+    if(busy || !current) return;
+    busy = true;
+    try{
+      const r = await sbRpc("bets_list", { p_user_id: current.id });
+      data = r || {};
+      if(typeof data.balance === "number"){ current.balance = data.balance; updateBalanceUI(); }
+      render();
+      if(!silent) msg(data.events && data.events.length ? "Elige un partido y toca una cuota (1 · X · 2) para apostar." : "No hay partidos disponibles ahora mismo. Vuelve más tarde.");
+    }catch(e){ if(!silent) msg("No se pudo cargar: " + msgDeError(e)); }
+    finally{ busy = false; }
+  }
+
+  function render(){
+    const bal = $("betBalance"), upd = $("betUpdated");
+    if(bal) bal.textContent = (data && typeof data.balance==="number") ? data.balance : (current ? current.balance : 0);
+    if(upd) upd.textContent = fmtUpd(data && data.updated);
+    renderEvents();
+    renderMine();
+  }
+
+  function renderEvents(){
+    const box = $("betList"); if(!box) return;
+    const evs = (data && data.events) || [];
+    if(!evs.length){ box.innerHTML = '<div class="muted" style="padding:14px">No hay partidos disponibles ahora mismo.</div>'; return; }
+    const has = sel ? sel.id : null;
+    box.innerHTML = evs.map(e=>{
+      const settled = e.status !== "open";
+      const started = e.commence <= Date.now();
+      const canBet = !settled && !started;
+      const mine = e.mine;
+      const resName = e.result === "home" ? e.home : e.result === "away" ? e.away : e.result === "draw" ? "Empate" : null;
+      const opt = (pick, name, odds, cls)=>{
+        if(odds==null) return "";
+        const chosen = sel && sel.id===e.id && sel.pick===pick ? " on" : "";
+        const win = settled && e.result===pick ? " win" : "";
+        const mineOn = mine && mine.pick===pick ? " mine" : "";
+        const dis = canBet ? "" : " disabled";
+        return `<button class="bet-opt${chosen}${win}${mineOn}"${dis} onclick="BETS.choose('${e.id}','${pick}')">
+          <span class="lbl">${pick==="home"?"1":pick==="draw"?"X":"2"}</span><span class="nm">${escapeHtml(name)}</span><span class="od">${odds}</span></button>`;
+      };
+      return `<div class="bet-ev">
+        <div class="bet-ev-top"><span class="bet-sport">${escapeHtml(e.sport||"")}</span><span class="bet-when">${settled ? "Finalizado" : escapeHtml(fmtWhen(e.commence))}</span></div>
+        <div class="bet-teams">${escapeHtml(e.home)} <span class="muted">vs</span> ${escapeHtml(e.away)}</div>
+        ${settled ? `<div class="bet-res ${resName?"ok":"bad"}">Resultado: ${resName?escapeHtml(resName):"—"}</div>` : ""}
+        <div class="bet-opts">
+          ${opt("home", e.home, e.oh)}
+          ${opt("draw", "Empate", e.od)}
+          ${opt("away", e.away, e.oa)}
+        </div>
+        ${mine ? `<div class="bet-mineline">Tu apuesta: ${escapeHtml(mine.pick_name)} · ${mine.stake} fichas x${mine.odds} · ${betStatusTxt(mine)}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  function betStatusTxt(b){
+    if(b.status==="won") return `<b class="ok">GANADA +${b.payout}</b>`;
+    if(b.status==="lost") return `<b class="bad">perdida</b>`;
+    if(b.status==="void") return `<b class="muted">anulada (devuelta)</b>`;
+    return `<b class="muted">en juego</b>`;
+  }
+
+  function renderMine(){
+    const box = $("betMine"); if(!box) return;
+    const mine = (data && data.mine) || [];
+    if(!mine.length){ box.innerHTML = '<div class="muted" style="padding:10px">Todavía no has hecho ninguna apuesta.</div>'; return; }
+    box.innerHTML = mine.slice(0, 25).map(b=>`<div class="bet-mrow">
+      <div class="bet-mmain"><strong>${escapeHtml(b.home)}</strong> <span class="muted">vs</span> <strong>${escapeHtml(b.away)}</strong>
+        <div class="muted" style="font-size:12px">${escapeHtml(b.pick_name)} · apuesta ${b.stake} · cuota x${b.odds}</div></div>
+      <div class="bet-mstat">${betStatusTxt(b)}</div>
+    </div>`).join("");
+  }
+
+  function choose(id, pick){
+    if(!current) return;
+    if(current.admin) return alert("La cuenta de administración no puede apostar.");
+    const e = (data && data.events || []).find(x=>x.id===id);
+    if(!e) return;
+    const name = pick==="home" ? e.home : pick==="away" ? e.away : "Empate";
+    const odds = pick==="home" ? e.oh : pick==="away" ? e.oa : e.od;
+    if(odds == null) return alert("Ese pronóstico no está disponible.");
+    sel = { id, pick, odds, name };
+    const bar = $("betBar"); if(!bar) return;
+    $("betBarText").innerHTML = `Apostar a <b>${escapeHtml(name)}</b> · cuota <b>x${odds}</b>`;
+    $("betStake").value = "";
+    bar.classList.remove("hidden");
+    renderEvents();
+    setTimeout(()=>{ const i=$("betStake"); if(i) i.focus(); }, 50);
+  }
+
+  async function place(){
+    if(!sel || !current) return;
+    const stake = Math.floor(Number($("betStake").value));
+    if(!Number.isFinite(stake) || stake <= 0) return alert("Escribe cuántas fichas quieres apostar.");
+    if(stake > current.balance) return alert("No tienes suficientes fichas (tienes " + current.balance + ").");
+    const btn = $("betPlaceBtn"); if(btn){ btn.disabled = true; btn.textContent = "Apostando…"; }
+    const name = sel.name;
+    try{
+      const r = await sbRpc("bets_place", { p_user_id: current.id, p_event: sel.id, p_pick: sel.pick, p_stake: stake, p_now: Date.now() });
+      data = r || data;
+      if(typeof data.balance === "number"){ current.balance = data.balance; updateBalanceUI(); }
+      hideBar();
+      render();
+      msg(`✅ Apuesta registrada: ${stake} fichas a <b>${escapeHtml(name)}</b>. ¡Suerte!`, true);
+    }catch(e){ alert(e.message || "No se pudo apostar."); }
+    finally{ if(btn){ btn.disabled = false; btn.textContent = "Apostar"; } }
+  }
+
+  /* ---- admin ---- */
+  async function adminSave(){
+    if(!current || !current.admin) return;
+    const raw = ($("betAdminSports") && $("betAdminSports").value || "").trim();
+    const arr = raw ? raw.split(",").map(s=>s.trim()).filter(Boolean) : null;
+    try{
+      const r = await sbRpc("bets_admin_setup", { p_admin: current.id, p_key: null, p_sports: arr });
+      adminShow(r);
+      alert("Deportes guardados. Ahora pulsa «Actualizar cuotas».");
+    }catch(e){ alert(e.message || "Error al guardar."); }
+  }
+  function adminShow(r){
+    const box = $("betAdminInfo"); if(!box || !r) return;
+    const sp = (r.sports || []).join(", ");
+    box.innerHTML = `Deportes activos: <b>${escapeHtml(sp || "—")}</b> · Actualizado ${fmtUpd(r.updated)}`;
+  }
+  async function adminRefresh(){
+    if(!current || !current.admin) return;
+    const box = $("betAdminInfo"); if(box) box.innerHTML = "Actualizando cuotas… (puede tardar unos segundos)";
+    try{
+      const r = await sbRpc("bets_refresh_all", {});
+      const d = (r && r.detail) || {};
+      const txt = Object.keys(d).map(k=>`${k}: ${d[k]}`).join(" · ");
+      const cfg = await sbRpc("bets_admin_setup", { p_admin: current.id, p_key: null, p_sports: null });
+      if(box) box.innerHTML = `Cuotas actualizadas (${(r&&r.total)||0} partidos).<br>${escapeHtml(txt)}<br>Deportes activos: <b>${escapeHtml((cfg.sports||[]).join(", "))}</b>`;
+      load(true);
+    }catch(e){ alert(e.message || "Error al actualizar cuotas."); }
+  }
+  async function adminSettle(){
+    if(!current || !current.admin) return;
+    const box = $("betAdminInfo"); if(box) box.innerHTML = "Revisando resultados…";
+    try{
+      const r = await sbRpc("bets_settle_all", {});
+      const d = (r && r.detail) || {};
+      const txt = Object.keys(d).map(k=>`${k}: ${d[k]}`).join(" · ");
+      if(box) box.innerHTML = `Resultados revisados. Apuestas pagadas: <b>${(r&&r.total)||0}</b><br>${escapeHtml(txt)}`;
+      load(true);
+    }catch(e){ alert(e.message || "Error al revisar resultados."); }
+  }
+  function adminPanelShown(){
+    if(!adminInfoDone){ adminInfoDone = true; }
+  }
+
+  function cancel(){ hideBar(); renderEvents(); }
+
+  return {open, close, load, choose, place, cancel, adminSave, adminRefresh, adminSettle, adminPanelShown};
+})();
+
+
 /* ---------------- pestañas de acceso ---------------- */
 loginTab.onclick = ()=>{ loginBox.classList.remove("hidden"); regBox.classList.add("hidden"); loginTab.className="primary"; regTab.className="ghost"; };
 regTab.onclick = ()=>{ regBox.classList.remove("hidden"); loginBox.classList.add("hidden"); regTab.className="primary"; loginTab.className="ghost"; };
