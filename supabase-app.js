@@ -187,7 +187,7 @@ async function enter(){
   document.getElementById("profileMenu").classList.add("hidden");
   const isAdmin = !!(current && current.admin);
   document.getElementById("welcome").textContent = isAdmin ? "Administrador" : current.name;
-  document.getElementById("uid").textContent = current.id;
+  document.getElementById("uid").textContent = (current.num != null ? current.num : current.id);
   document.getElementById("avatar").src = current.avatar || defaultAvatar();
   if(isAdmin){
     document.getElementById("admin").classList.remove("hidden");
@@ -225,10 +225,10 @@ async function changePassword(){
 }
 
 async function sendFichas(){
-  const target = prompt("ID del usuario destinatario (ej: carlos):");
+  const target = prompt("Número de ID del destinatario (el número que sale en su perfil):");
   if(target===null) return;
   const amount = Number(prompt("Cantidad de fichas:"));
-  const toId = normName(target);
+  const toId = String(target).trim().replace(/[^0-9a-záéíóúñ_]/gi,"").toLowerCase();
   if(!toId || !Number.isFinite(amount) || amount<=0) return alert("Datos no válidos.");
   if(toId===current.id) return alert("No puedes enviarte fichas a ti mismo.");
   try{
@@ -266,11 +266,13 @@ function startAdminWatch(){
 }
 function stopAdminWatch(){ if(adminTimer){ clearInterval(adminTimer); adminTimer=null; } }
 
+let adminSelId = null, adminSelStats = null;
+
 async function refreshAdmin(){
   if(!current || !current.admin) return;
   try{
     const [ou, ol, os] = await Promise.all([
-      sbRead("v_users?select=id,name,balance,admin"),
+      sbRead("v_users?select=id,num,name,balance,admin"),
       sbRead("ledger?select=*&order=ts.desc&limit=150"),
       sbRead("scratch_stats?select=*&limit=1")
     ]);
@@ -286,12 +288,96 @@ function renderAdmin(){
   const pl = usersCache.filter(u=>!u.admin);
   document.getElementById("adminUsers").textContent = pl.length;
   document.getElementById("adminBalance").textContent = pl.reduce((s,u)=>s+(u.balance||0),0);
+  pl.sort((a,b)=>(b.num||0)-(a.num||0));
   const sel = document.getElementById("adminTarget");
   const keep = sel && sel.value;
-  sel.innerHTML = pl.map(u=>`<option value="${escapeHtml(u.id)}">${escapeHtml(u.name)} — ${escapeHtml(u.id)} — ${u.balance} fichas</option>`).join("");
-  if(keep && [...sel.options].some(o=>o.value===keep)) sel.value = keep;
+  if(sel) sel.innerHTML = pl.map(u=>`<option value="${escapeHtml(u.id)}">#${u.num} ${escapeHtml(u.name)} — ${u.balance} fichas</option>`).join("");
+  if(keep && sel && [...sel.options].some(o=>o.value===keep)) sel.value = keep;
+  const list = document.getElementById("adminUserList");
+  if(list){
+    list.innerHTML = pl.map(u=>`<button class="adm-urow${u.id===adminSelId?" on":""}" data-id="${escapeHtml(u.id)}" onclick="adminSelectUser('${u.id}')">
+      <span class="adm-unum">#${u.num}</span>
+      <span class="adm-uname">${escapeHtml(u.name)}</span>
+      <span class="adm-ubal">${u.balance} 🪙</span>
+    </button>`).join("") || '<div class="muted" style="padding:8px">Sin usuarios.</div>';
+  }
   renderScratchStats();
   document.getElementById("ledger").innerHTML = ledgerDataHtml();
+  if(adminSelId) updateSelRowHighlight();
+}
+
+function updateSelRowHighlight(){
+  document.querySelectorAll("#adminUserList .adm-urow").forEach(b=>{
+    if(b.dataset.id === adminSelId) b.classList.add("on"); else b.classList.remove("on");
+  });
+}
+
+function adminSelectUser(id){
+  adminSelId = id;
+  if(adminTarget) adminTarget.value = id;
+  updateSelRowHighlight();
+  adminLoadStats(id);
+}
+
+async function adminLoadStats(id){
+  const box = document.getElementById("adminUserDetail");
+  if(!box) return;
+  box.innerHTML = '<div class="muted" style="padding:10px">Cargando datos…</div>';
+  try{
+    const s = await sbRpc("admin_user_stats", { p_admin: current.id, p_user_id: id });
+    adminSelStats = s;
+    renderUserDetail(s);
+  }catch(e){ box.innerHTML = '<div class="bad" style="padding:10px">'+escapeHtml(e.message||"Error al cargar.")+'</div>'; }
+}
+
+function money(v){ return (v>0?"+":"")+v; }
+
+function renderUserDetail(s){
+  const box = document.getElementById("adminUserDetail"); if(!box || !s) return;
+  const byType = (s.byType||[]).map(t=>`<tr><td>${escapeHtml(t.type)}</td><td>${t.count}</td><td class="${t.sum>=0?"ok":"bad"}">${money(t.sum)}</td></tr>`).join("") || '<tr><td colspan="3" class="muted">Sin movimientos.</td></tr>';
+  const last = (s.last||[]).map(x=>`<tr><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.type)}</td><td class="${x.amount>=0?"ok":"bad"}">${money(x.amount)}</td><td>${escapeHtml(x.detail||"")}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">Sin movimientos.</td></tr>';
+  const b = s.bets || {};
+  box.innerHTML = `
+    <div class="card" style="background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div><strong style="font-size:18px">${escapeHtml(s.name)}</strong> <span class="adm-unum">#${s.num}</span>
+          <div class="muted" style="font-size:12px">Usuario: ${escapeHtml(s.id)}</div></div>
+        <div style="text-align:right"><div class="muted" style="font-size:12px">Saldo actual</div><div class="balance" style="font-size:22px">${s.balance} 🪙</div></div>
+      </div>
+      <div class="grid" style="margin-top:10px">
+        <div><div class="muted">Ganado (juegos)</div><div class="balance ok">+${s.won}</div></div>
+        <div><div class="muted">Perdido (juegos)</div><div class="balance bad">${s.lost}</div></div>
+      </div>
+      <div class="grid">
+        <div><div class="muted">Neto en juegos</div><div class="balance ${s.gameNet>=0?"ok":"bad"}">${money(s.gameNet)}</div></div>
+        <div><div class="muted">Neto total</div><div class="balance ${s.net>=0?"ok":"bad"}">${money(s.net)}</div></div>
+      </div>
+      <div class="muted" style="font-size:13px;margin-top:8px">Recargas: <b class="ok">+${s.recargas}</b> · Retiros: <b class="bad">${s.retiros}</b> · Transferencias: <b>${money(s.transferencias)}</b></div>
+      <div class="muted" style="font-size:13px;margin-top:4px">🎯 Apuestas: ${b.count||0} · apostado ${b.staked||0} · ganado ${b.payout||0} · (${b.won||0} ganadas, ${b.lost||0} perdidas, ${b.open||0} en juego)</div>
+      <div class="muted" style="font-size:13px;margin-top:4px">🏆 Rondas ganadas: ${(s.rounds&&s.rounds.games)||0} · premios ${(s.rounds&&s.rounds.prize)||0} 🪙</div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="danger" onclick="adminDeleteUser('${s.id}')">🗑️ Eliminar usuario</button>
+        <button class="ghost" onclick="adminAdjust(1)">＋ Dar fichas</button>
+        <button class="ghost" onclick="adminAdjust(-1)">− Quitar fichas</button>
+      </div>
+    </div>
+    <h3>Desglose por tipo</h3>
+    <div style="overflow:auto"><table><thead><tr><th>Tipo</th><th>Veces</th><th>Total</th></tr></thead><tbody>${byType}</tbody></table></div>
+    <h3>Últimos movimientos</h3>
+    <div style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody>${last}</tbody></table></div>`;
+}
+
+async function adminDeleteUser(id){
+  const u = usersCache.find(x=>x.id===id) || {};
+  if(!confirm("¿Eliminar definitivamente a "+(u.name||id)+" (#"+(u.num||"?")+")?\nSe borrarán su cuenta, sus apuestas y sus movimientos del historial. No se puede deshacer.")) return;
+  try{
+    await sbRpc("admin_delete_user", { p_admin: current.id, p_user_id: id });
+    adminSelId = null; adminSelStats = null;
+    const box = document.getElementById("adminUserDetail");
+    if(box) box.innerHTML = '<div class="muted" style="padding:10px">Selecciona un usuario de la lista para ver sus datos.</div>';
+    refreshAdmin();
+    alert("Usuario eliminado.");
+  }catch(e){ alert(e.message||"No se pudo eliminar."); }
 }
 
 function renderScratchStats(){
@@ -302,13 +388,14 @@ function renderScratchStats(){
 }
 
 async function adminAdjust(sign){
-  const toId = adminTarget.value;
+  const toId = adminSelId || (adminTarget && adminTarget.value);
   const a = Math.floor(Number(adminAmount.value));
-  if(!toId) return alert("No hay usuarios para ajustar. Crea una cuenta primero.");
+  if(!toId) return alert("Toca primero un usuario de la lista.");
   if(!Number.isFinite(a) || a<=0) return alert("Escribe una cantidad válida en fichas (número entero mayor que 0).");
   try{
-    await sbRpc("admin_adjust", { p_to: toId, p_amount: a, p_sign: sign, p_now: Date.now() });
+    await sbRpc("admin_adjust", { p_admin: current.id, p_to: toId, p_amount: a, p_sign: sign, p_now: Date.now() });
     adminAmount.value = "";
+    if(adminSelId === toId) adminLoadStats(toId);
     refreshAdmin();
     alert((sign>0?"Se sumaron ":"Se quitaron ")+a+" fichas.");
   }catch(e){ alert(e.message||"Error al ajustar fichas."); }
