@@ -346,7 +346,8 @@ body{overflow-x:hidden}}
 <h3>📈 Ganancia total por día</h3>
 <div class="muted" style="font-size:12px">Ganancia de la casa por día, con el pago de agentes incluido (Neto = Ganancia − Comisión).</div>
 <div style="overflow:auto"><table><thead><tr><th>Día</th><th>Ganancia bruta</th><th>Comisión agentes</th><th>Ganancia neta</th></tr></thead><tbody id="adminDaily"></tbody></table></div>
-<h3>Registro de movimientos</h3><div style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody id="ledger"></tbody></table></div></section>
+<button class="ghost" style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:12px" onclick="toggleLedger()"><span>📜 Registro de movimientos</span><span id="ledgerCaret">▸</span></button>
+<div id="ledgerWrap" class="hidden" style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody id="ledger"></tbody></table></div></section>
 </section></div>
 
 <script>/* ================================================================
@@ -670,6 +671,13 @@ function renderAdmin(){
   renderDaily();
   document.getElementById("ledger").innerHTML = ledgerDataHtml();
   if(adminSelId) updateSelRowHighlight();
+}
+
+function toggleLedger(){
+  const w = document.getElementById("ledgerWrap"); if(!w) return;
+  const c = document.getElementById("ledgerCaret");
+  const open = w.classList.toggle("hidden") === false;
+  if(c) c.textContent = open ? "▾" : "▸";
 }
 
 function renderDaily(){

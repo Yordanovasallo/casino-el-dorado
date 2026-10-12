@@ -321,6 +321,13 @@ function renderAdmin(){
   if(adminSelId) updateSelRowHighlight();
 }
 
+function toggleLedger(){
+  const w = document.getElementById("ledgerWrap"); if(!w) return;
+  const c = document.getElementById("ledgerCaret");
+  const open = w.classList.toggle("hidden") === false;
+  if(c) c.textContent = open ? "▾" : "▸";
+}
+
 function renderDaily(){
   const box = document.getElementById("adminDaily"); if(!box) return;
   box.innerHTML = dailyCache.map(d=>`<tr><td>${escapeHtml(String(d.day))}</td><td>${d.profit} 🪙</td><td class="bad">${d.commission?-d.commission:0} 🪙</td><td class="${d.net>=0?"ok":"bad"}">${d.net} 🪙</td></tr>`).join("")
