@@ -1,8 +1,10 @@
 -- ============================================================
 -- CASH 3 (banca manual): el admin escribe el número ganador.
--- Modalidades elegidas por el jugador antes de apostar:
---   'three' (a las 3): 3 dígitos exactos  -> paga mult_three por ficha
---   'two'   (últimos 2): 2 dígitos = últimos 2 -> paga mult_two por ficha
+-- Cada jugada = un número de 3 dígitos con DOS montos a la vez:
+--   p_stake_three -> si el número sale exacto, paga mult_three por ficha
+--   p_stake_two   -> si coinciden los últimos 2, paga mult_two por ficha
+-- Ejemplo: "217-3-5" = número 217, 3 fichas a las 3, 5 fichas a los últimos 2.
+-- Si sale 217, gana AMBAS (3*mult_three + 5*mult_two).
 -- ============================================================
 
 create table if not exists public.cash3_config (
@@ -29,8 +31,8 @@ create table if not exists public.cash3_bet (
   user_id text not null,
   uname text not null,
   num text not null,
-  mode text not null,
-  stake integer not null,
+  stake_three integer not null default 0,
+  stake_two integer not null default 0,
   status text not null default 'open',
   payout integer not null default 0,
   created bigint not null default 0
@@ -79,14 +81,16 @@ begin
   select * into cfg from cash3_config where id = 1;
   rid := public._cash3_open_round((extract(epoch from now()) * 1000)::bigint);
   select * into r from cash3_round where id = rid;
-  select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'num', b.num, 'mode', b.mode, 'stake', b.stake,
+  select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'num', b.num,
+           'stake_three', b.stake_three, 'stake_two', b.stake_two,
            'status', b.status, 'payout', b.payout, 'created', b.created) order by b.created desc), '[]'::jsonb)
     into mine
     from cash3_bet b where b.round_id = rid and b.user_id = u.id and b.status = 'open';
-  select coalesce(jsonb_agg(jsonb_build_object('num', x.num, 'mode', x.mode, 'stake', x.stake,
-           'status', x.status, 'payout', x.payout, 'winner', x.winner, 'created', x.created) order by x.created desc), '[]'::jsonb)
+  select coalesce(jsonb_agg(jsonb_build_object('num', x.num, 'stake_three', x.stake_three,
+           'stake_two', x.stake_two, 'status', x.status, 'payout', x.payout,
+           'winner', x.winner, 'created', x.created) order by x.created desc), '[]'::jsonb)
     into recent
-    from (select b.num, b.mode, b.stake, b.status, b.payout, b.created, r2.winner
+    from (select b.num, b.stake_three, b.stake_two, b.status, b.payout, b.created, r2.winner
           from cash3_bet b left join cash3_round r2 on r2.id = b.round_id
           where b.user_id = u.id order by b.created desc limit 25) x;
   select coalesce(jsonb_agg(jsonb_build_object('winner', h.winner, 'settled', h.settled,
@@ -100,41 +104,38 @@ begin
     'mine', mine, 'recent', recent, 'history', hist);
 end $$;
 
-create or replace function public.cash3_place(p_token text, p_num text, p_mode text, p_stake integer, p_now bigint)
+create or replace function public.cash3_place(p_token text, p_num text, p_stake_three integer, p_stake_two integer, p_now bigint)
 returns jsonb
 language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare u users; r cash3_round; rid text; vnum text; date_txt text;
+declare u users; r cash3_round; rid text; vnum text; st3 int; st2 int; total int; date_txt text; detail_txt text;
 begin
   u := public._sess_user(p_token);
   if u.id is null then raise exception 'Sesión expirada. Cierra y vuelve a entrar.'; end if;
   select * into u from users where id = u.id for update;
   if u.admin then raise exception 'La cuenta de administración no puede apostar.'; end if;
-  if p_stake is null or p_stake <= 0 then raise exception 'Monto no válido.'; end if;
+  st3 := greatest(coalesce(p_stake_three, 0), 0);
+  st2 := greatest(coalesce(p_stake_two, 0), 0);
+  total := st3 + st2;
+  if total <= 0 then raise exception 'Escribe cuántas fichas a las 3 y/o a los últimos 2.'; end if;
   vnum := regexp_replace(coalesce(p_num, ''), '[^0-9]', '', 'g');
-  if p_mode = 'three' then
-    if length(vnum) < 1 or length(vnum) > 3 then raise exception 'Escribe de 1 a 3 dígitos.'; end if;
-    vnum := lpad(vnum, 3, '0');
-  elsif p_mode = 'two' then
-    if length(vnum) < 1 or length(vnum) > 2 then raise exception 'Escribe 1 o 2 dígitos.'; end if;
-    vnum := lpad(vnum, 2, '0');
-  else
-    raise exception 'Modalidad no válida.';
-  end if;
-  if u.balance < p_stake then raise exception 'No tienes suficientes fichas (% disponibles).', u.balance; end if;
+  if length(vnum) < 1 or length(vnum) > 3 then raise exception 'Escribe un número de 1 a 3 dígitos.'; end if;
+  vnum := lpad(vnum, 3, '0');
+  if u.balance < total then raise exception 'No tienes suficientes fichas (% disponibles).', u.balance; end if;
   rid := public._cash3_open_round(p_now);
   select * into r from cash3_round where id = rid for update;
   if r.finished then raise exception 'La ronda acaba de cerrar. Vuelve a intentarlo.'; end if;
-  update users set balance = balance - p_stake where id = u.id;
-  insert into cash3_bet (round_id, user_id, uname, num, mode, stake, status, payout, created)
-  values (rid, u.id, u.name, vnum, p_mode, p_stake, 'open', 0, p_now);
+  update users set balance = balance - total where id = u.id;
+  insert into cash3_bet (round_id, user_id, uname, num, stake_three, stake_two, status, payout, created)
+  values (rid, u.id, u.name, vnum, st3, st2, 'open', 0, p_now);
+  detail_txt := vnum || case when st3 > 0 then ' · a las 3: ' || st3 else '' end
+                      || case when st2 > 0 then ' · últimos 2: ' || st2 else '' end;
   date_txt := to_char(now(), 'DD/MM/YYYY HH24:MI:SS');
   insert into ledger (date, uname, type, amount, detail, ts)
-  values (date_txt, u.name, 'Cash 3', -p_stake,
-          case when p_mode = 'three' then 'A las 3: ' || vnum else 'Últimos 2: ' || vnum end, p_now);
-  return jsonb_build_object('ok', true, 'num', vnum, 'mode', p_mode, 'balance', u.balance - p_stake);
+  values (date_txt, u.name, 'Cash 3', -total, detail_txt, p_now);
+  return jsonb_build_object('ok', true, 'num', vnum, 'stake_three', st3, 'stake_two', st2, 'balance', u.balance - total);
 end $$;
 
 -- ---------- admin ----------
@@ -150,14 +151,15 @@ begin
   a := public._sess_user(p_token);
   if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
   rid := public._cash3_open_round((extract(epoch from now()) * 1000)::bigint);
-  select coalesce(sum(stake), 0) into tot from cash3_bet where round_id = rid and status = 'open';
-  select coalesce(jsonb_agg(jsonb_build_object('num', b.num, 'mode', b.mode, 'stake', b.stake,
-           'name', b.uname, 'created', b.created) order by b.created desc), '[]'::jsonb)
+  select coalesce(sum(stake_three + stake_two), 0) into tot from cash3_bet where round_id = rid and status = 'open';
+  select coalesce(jsonb_agg(jsonb_build_object('num', b.num, 'stake_three', b.stake_three, 'stake_two', b.stake_two,
+           'stake', b.stake_three + b.stake_two, 'name', b.uname, 'created', b.created) order by b.created desc), '[]'::jsonb)
     into bets from cash3_bet b where b.round_id = rid and b.status = 'open';
-  select coalesce(jsonb_agg(jsonb_build_object('num', t.num, 'mode', t.mode, 'count', t.n, 'stake', t.s) order by t.s desc), '[]'::jsonb)
+  select coalesce(jsonb_agg(jsonb_build_object('num', t.num, 'count', t.n, 'stake', t.s,
+           'stake_three', t.s3, 'stake_two', t.s2) order by t.s desc), '[]'::jsonb)
     into bynum from (
-      select num, mode, count(*) n, sum(stake) s from cash3_bet
-      where round_id = rid and status = 'open' group by num, mode
+      select num, count(*) n, sum(stake_three + stake_two) s, sum(stake_three) s3, sum(stake_two) s2
+      from cash3_bet where round_id = rid and status = 'open' group by num
     ) t;
   return jsonb_build_object('round', rid, 'open_stake', tot, 'bets', bets, 'by_num', bynum);
 end $$;
@@ -171,7 +173,7 @@ as $$
 declare
   a users; cfg cash3_config; w text; rid text; r cash3_round; b record;
   pay int; won_cnt int := 0; lost_cnt int := 0; tot_stake bigint := 0; tot_paid bigint := 0;
-  date_txt text;
+  date_txt text; detail_txt text;
 begin
   a := public._sess_user(p_token);
   if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
@@ -185,21 +187,19 @@ begin
   if r.finished then raise exception 'Esa ronda ya se liquidó.'; end if;
   date_txt := to_char(now(), 'DD/MM/YYYY HH24:MI:SS');
   for b in select * from cash3_bet where round_id = rid and status = 'open' order by created for update loop
-    tot_stake := tot_stake + b.stake;
+    tot_stake := tot_stake + b.stake_three + b.stake_two;
     pay := 0;
-    if b.mode = 'three' then
-      if b.num = w then pay := b.stake * cfg.mult_three; end if;
-    elsif b.mode = 'two' then
-      if b.num = right(w, 2) then pay := b.stake * cfg.mult_two; end if;
-    end if;
+    if b.num = w then pay := pay + b.stake_three * cfg.mult_three; end if;
+    if right(b.num, 2) = right(w, 2) then pay := pay + b.stake_two * cfg.mult_two; end if;
     if pay > 0 then
       won_cnt := won_cnt + 1; tot_paid := tot_paid + pay;
       update cash3_bet set status = 'won', payout = pay where id = b.id;
       update users set balance = balance + pay where id = b.user_id;
+      detail_txt := b.num || ' → ' || w
+        || case when b.num = w and b.stake_three > 0 then ' (a las 3: ' || (b.stake_three * cfg.mult_three) || ')' else '' end
+        || case when right(b.num,2) = right(w,2) and b.stake_two > 0 then ' (últimos 2: ' || (b.stake_two * cfg.mult_two) || ')' else '' end;
       insert into ledger (date, uname, type, amount, detail, ts)
-      values (date_txt, b.uname, 'Cash 3 - Premio', pay,
-              case when b.mode = 'three' then 'A las 3: ' || b.num || ' (x' || cfg.mult_three || ')'
-                   else 'Últimos 2: ' || b.num || ' (x' || cfg.mult_two || ')' end, p_now);
+      values (date_txt, b.uname, 'Cash 3 - Premio', pay, detail_txt, p_now);
     else
       lost_cnt := lost_cnt + 1;
       update cash3_bet set status = 'lost', payout = 0 where id = b.id;
@@ -213,6 +213,6 @@ begin
 end $$;
 
 grant execute on function public.cash3_state(text) to anon, authenticated;
-grant execute on function public.cash3_place(text, text, text, integer, bigint) to anon, authenticated;
+grant execute on function public.cash3_place(text, text, integer, integer, bigint) to anon, authenticated;
 grant execute on function public.cash3_admin_info(text) to anon, authenticated;
 grant execute on function public.cash3_admin_settle(text, text, bigint) to anon, authenticated;

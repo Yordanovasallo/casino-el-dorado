@@ -211,7 +211,7 @@ body{overflow-x:hidden}}
 <button class="ghost" style="height:190px;font-size:54px" onclick="R2.open()">⚡<div style="font-size:17px;margin-top:8px">Ruleta Rápida<br>5 fichas · 1 min</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="SC.open()">🎟️<div style="font-size:17px;margin-top:6px">Raspa y Gana<br>10 fichas · premios hasta 1000</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="BETS.open()">⚽<div style="font-size:17px;margin-top:6px">Apuestas Deportivas<br>fútbol y baloncesto · 1 · X · 2</div></button>
-<button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="C3.open()">🎲<div style="font-size:17px;margin-top:6px">Cash 3<br>3 dígitos · o últimos 2 · paga 400x / 70x</div></button>
+<button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="C3.open()">🎲<div style="font-size:17px;margin-top:6px">Cash 3<br>un número · a las 3 y/o a los últimos 2 · paga 400x / 70x</div></button>
 </div></div>
 <div id="agentCard" class="card hidden"><h3 style="margin-top:0">🧑💼 Panel de agente</h3><div class="muted">Gestiona tus jugadores, ajusta su saldo y cobra tu comisión.</div><button class="primary" onclick="AG.open()" style="margin-top:10px">Abrir panel de agente</button></div>
 </div>
@@ -318,18 +318,16 @@ body{overflow-x:hidden}}
 <div class="c3-head"><button class="ghost" style="width:auto" onclick="C3.close()">← Volver</button><h2>🎲 Cash 3</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="C3.load()">🔄 Actualizar</button></div>
 <div class="c3-top">🪙 Saldo: <b id="c3Balance" style="color:#f5c451">0</b> fichas · <span class="muted">Elige a qué juegas antes de apostar</span></div>
 <div class="c3-box">
-<div class="muted" style="text-align:center">Escoge tu modalidad</div>
-<div class="c3-modes">
-<button class="c3-mode" id="c3ModeThree" onclick="C3.setMode('three')"><div class="t">🎯 A las 3</div><div class="p" id="c3PayThree">paga 400 por ficha</div></button>
-<button class="c3-mode" id="c3ModeTwo" onclick="C3.setMode('two')"><div class="t">🎯 Últimos 2</div><div class="p" id="c3PayTwo">paga 70 por ficha</div></button>
-</div>
+<div class="muted" style="text-align:center">Escribe tu número de 3 dígitos</div>
 <div class="c3-digits"><input id="c3Num" class="c3-input" inputmode="numeric" maxlength="3" placeholder="000" oninput="C3.clean()"></div>
-<div class="muted" style="text-align:center;font-size:12px" id="c3Hint">Escribe 3 dígitos (ej: 407). Ganarás si sale ese número exacto.</div>
-<div style="display:flex;justify-content:center;gap:8px;align-items:center;margin:12px 0">
-<span class="muted">Fichas:</span><input id="c3Stake" class="c3-stake" type="number" min="1" value="10">
+<div class="muted" style="text-align:center;font-size:12px" id="c3Hint">Ejemplo: juegas el 217. Si sale 217 ganas a las 3; si salen los últimos 2 (17) ganas a los últimos 2. Puedes jugar a una o a las dos.</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0">
+<div class="c3-mode" style="cursor:default"><div class="t">🎯 A las 3</div><div class="p" id="c3PayThree">paga 400 por ficha</div><input id="c3StakeThree" class="c3-stake" type="number" min="0" value="0" style="width:100%;margin-top:8px" oninput="C3.preview()"></div>
+<div class="c3-mode" style="cursor:default"><div class="t">🎯 Últimos 2</div><div class="p" id="c3PayTwo">paga 70 por ficha</div><input id="c3StakeTwo" class="c3-stake" type="number" min="0" value="0" style="width:100%;margin-top:8px" oninput="C3.preview()"></div>
 </div>
+<div id="c3Preview" class="muted" style="text-align:center;font-size:13px;margin:-4px 0 10px"></div>
 <button class="primary" style="width:100%" onclick="C3.place()">🎲 APOSTAR</button>
-<div id="c3Msg" class="notice" style="margin-top:12px">Elige tu número y apuesta. Tú decides antes si juegas a las 3 o a los últimos 2.</div>
+<div id="c3Msg" class="notice" style="margin-top:12px">Escribe tu número, cuánto juegas a las 3 y/o a los últimos 2.</div>
 </div>
 <div class="c3-box"><h3 style="margin-top:0">🎯 Mis jugadas en esta ronda</h3><div id="c3Mine" style="display:grid;gap:8px"></div></div>
 <div class="c3-box"><h3 style="margin-top:0">🕘 Últimos resultados</h3><div id="c3Hist" class="c3-hist"></div></div>
@@ -1596,10 +1594,10 @@ const BETS = (function(){
 /* ---------------- Cash 3 ---------------- */
 const C3 = (function(){
   const $ = n => document.getElementById(n);
-  let data = null, timer = null, busy = false, mode = "three";
+  let data = null, timer = null, busy = false;
 
   const msg = (t, cls)=>{ const m=$("c3Msg"); if(!m) return; m.textContent=t; if(cls) m.className="notice "+cls; else m.className="notice"; };
-  const modeName = m => m === "three" ? "A las 3" : "Últimos 2";
+  const int = (el, def)=>{ const v = parseInt(el && el.value, 10); return isNaN(v) ? (def||0) : v; };
 
   function open(){
     $("c3Game").classList.remove("hidden");
@@ -1616,21 +1614,18 @@ const C3 = (function(){
     if(timer){ clearInterval(timer); timer = null; }
   }
 
-  function setMode(m){
-    mode = m === "two" ? "two" : "three";
-    const three = $("c3ModeThree"), two = $("c3ModeTwo");
-    if(three) three.classList.toggle("on", mode==="three");
-    if(two) two.classList.toggle("on", mode==="two");
-    const num = $("c3Num");
-    if(num){ num.maxLength = mode==="three" ? 3 : 2; num.value=""; num.placeholder = mode==="three" ? "000" : "00"; }
-    const hint = $("c3Hint");
-    if(hint) hint.textContent = mode==="three"
-      ? "Escribe 3 dígitos (ej: 407). Ganarás si sale ese número exacto."
-      : "Escribe 2 dígitos (ej: 07). Ganarás si son los últimos 2 del número que salga.";
-  }
   function clean(){
     const num = $("c3Num"); if(!num) return;
-    num.value = num.value.replace(/[^0-9]/g, "").slice(0, mode==="three" ? 3 : 2);
+    num.value = num.value.replace(/[^0-9]/g, "").slice(0, 3);
+    preview();
+  }
+  function preview(){
+    const box = $("c3Preview"); if(!box) return;
+    const m3 = (data && data.mult_three) || 400, m2 = (data && data.mult_two) || 70;
+    const s3 = Math.max(int($("c3StakeThree"),0),0), s2 = Math.max(int($("c3StakeTwo"),0),0);
+    const has = s3 > 0 || s2 > 0;
+    if(!has){ box.textContent = ""; return; }
+    box.innerHTML = `Si aciertas: ${s3>0?`a las 3 <b>${s3*m3}</b> 🪙`:""}${s3>0&&s2>0?" · ":""}${s2>0?`últimos 2 <b>${s2*m2}</b> 🪙`:""}`;
   }
 
   async function load(silent){
@@ -1641,7 +1636,7 @@ const C3 = (function(){
       data = r || {};
       if(typeof data.balance === "number"){ current.balance = data.balance; updateBalanceUI(); }
       render();
-      if(!silent) msg("Elige tu número y apuesta. Tú decides antes si juegas a las 3 o a los últimos 2.");
+      if(!silent) msg("Escribe tu número, cuánto juegas a las 3 y/o a los últimos 2.");
     }catch(e){ if(!silent) msg("No se pudo cargar: " + msgDeError(e)); }
     finally{ busy = false; }
   }
@@ -1655,15 +1650,20 @@ const C3 = (function(){
     renderMine();
     renderHist();
     renderRecent();
+    preview();
   }
 
   function betRow(b, withWinner){
     const st = b.status === "won" ? "won" : b.status === "lost" ? "lost" : "open";
     const label = st === "won" ? "GANÓ" : st === "lost" ? "PERDIÓ" : "EN JUEGO";
-    const num = (b.num||"").padStart(b.mode==="three"?3:2, "0");
-    const right = st === "won" ? `+${b.payout} 🪙` : st === "lost" ? `−${b.stake} 🪙` : `${b.stake} 🪙 apostados`;
+    const num = (b.num||"").padStart(3, "0");
+    const st3 = b.stake_three||0, st2 = b.stake_two||0, total = st3 + st2;
+    const parts = [];
+    if(st3>0) parts.push(`${st3} a las 3`);
+    if(st2>0) parts.push(`${st2} últimos 2`);
+    const right = st === "won" ? `+${b.payout} 🪙` : st === "lost" ? `−${total} 🪙` : `${total} 🪙 apostados`;
     const win = withWinner && b.winner ? `<span class="muted"> · salió ${escapeHtml(b.winner)}</span>` : "";
-    return `<div class="c3-mrow"><div>🎯 <b>${escapeHtml(num)}</b> · <span class="muted">${modeName(b.mode)}</span><span class="c3-badge ${st}">${label}</span>${win}</div><div style="white-space:nowrap;color:${st==='won'?'#7dffb0':st==='lost'?'#ff9aa8':'#cdd6ea'}">${right}</div></div>`;
+    return `<div class="c3-mrow"><div>🎯 <b>${escapeHtml(num)}</b><span class="c3-badge ${st}">${label}</span> <span class="muted">${parts.join(" · ")}</span>${win}</div><div style="white-space:nowrap;color:${st==='won'?'#7dffb0':st==='lost'?'#ff9aa8':'#cdd6ea'}">${right}</div></div>`;
   }
 
   function renderMine(){
@@ -1688,15 +1688,17 @@ const C3 = (function(){
   async function place(){
     if(!current) return;
     const num = ($("c3Num") && $("c3Num").value || "").trim();
-    const stake = parseInt($("c3Stake") && $("c3Stake").value, 10);
+    const s3 = Math.max(int($("c3StakeThree"),0),0), s2 = Math.max(int($("c3StakeTwo"),0),0);
     if(!num) return msg("Escribe tu número.");
-    if(!stake || stake <= 0) return msg("Escribe cuántas fichas quieres apostar.");
-    msg("⏳ Enviando apuesta…");
+    if(s3 <= 0 && s2 <= 0) return msg("Escribe cuántas fichas a las 3 y/o a los últimos 2.");
+    msg("⏳ Enviando jugada…");
     try{
-      const r = await sbRpc("cash3_place", { p_token: token, p_num: num, p_mode: mode, p_stake: stake, p_now: Date.now() });
+      const r = await sbRpc("cash3_place", { p_token: token, p_num: num, p_stake_three: s3, p_stake_two: s2, p_now: Date.now() });
       if(r && typeof r.balance === "number"){ current.balance = r.balance; updateBalanceUI(); }
       const num2 = $("c3Num"); if(num2) num2.value = "";
-      msg(`✅ Apuesta a ${mode==="three"?"las 3":"los últimos 2"} por ${escapeHtml((r&&r.num)||num)} · ${stake} fichas.${mode==="three"?(" Si sale ese número ganas "+(stake*((data&&data.mult_three)||400))):(" Si salen esos 2 últimos ganas "+(stake*((data&&data.mult_two)||70)))} fichas.`, "win");
+      const s3i = $("c3StakeThree"), s2i = $("c3StakeTwo");
+      if(s3i) s3i.value = 0; if(s2i) s2i.value = 0;
+      msg(`✅ Jugada al ${escapeHtml((r&&r.num)||num)} enviada (${(r&&r.stake_three)||0} a las 3, ${(r&&r.stake_two)||0} a los últimos 2).`, "win");
       load(true);
     }catch(e){ msg("No se pudo apostar: " + msgDeError(e), "danger"); }
   }
@@ -1710,7 +1712,7 @@ const C3 = (function(){
       const by = r.by_num || [];
       if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas`;
       if(list){
-        list.innerHTML = by.length ? by.map(b=>`<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.mode==="three"?"A las 3":"Últimos 2"}</span><span class="adm-ubal">${b.count} jug. · ${b.stake} 🪙</span></div>`).join("")
+        list.innerHTML = by.length ? by.map(b=>`<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.count} jug. · a las 3: ${b.stake_three} · últ. 2: ${b.stake_two}</span><span class="adm-ubal">${b.stake} 🪙</span></div>`).join("")
           : '<div class="muted" style="padding:8px">Sin apuestas abiertas todavía.</div>';
       }
     }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
@@ -1731,9 +1733,7 @@ const C3 = (function(){
     }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
   }
 
-  setMode("three");
-
-  return {open, close, load, setMode, clean, place, adminInfo, adminSettle};
+  return {open, close, load, clean, preview, place, adminInfo, adminSettle};
 })();
 
 
