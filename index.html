@@ -83,6 +83,11 @@ animation:drift 22s ease-in-out infinite alternate}
 .wallet{background:linear-gradient(180deg,rgba(11,18,32,.96),rgba(11,18,32,.82))!important;border-bottom:1px solid rgba(245,196,81,.35)!important;box-shadow:0 6px 24px rgba(0,0,0,.5),0 1px 0 rgba(245,196,81,.25);font-weight:600;letter-spacing:.3px}
 .wallet span{display:inline-block;animation:coinflip 3.2s ease-in-out infinite;filter:drop-shadow(0 0 6px rgba(245,196,81,.7))}
 .wallet b{font-size:18px;color:var(--gold2);text-shadow:0 0 12px rgba(245,196,81,.55);font-variant-numeric:tabular-nums}
+.wallet{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.wallet .wallet-bal{white-space:nowrap}
+.clock{display:flex;align-items:center;gap:6px;font-weight:700;font-size:15px;color:var(--gold2)}
+.clock .clockTime{font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(245,196,81,.55)}
+.clock .clockDate{font-size:12px;font-weight:500;opacity:.8;text-transform:capitalize}
 @keyframes coinflip{0%,60%,100%{transform:rotateY(0)}80%{transform:rotateY(360deg)}}
 
 /* ===== Título ===== */
@@ -184,7 +189,7 @@ body{overflow-x:hidden}}
 </head>
 <body>
 <div id="chipRain" class="chip-rain"></div>
-<div class="wallet"><span>🪙</span> <b id="topBalance">0</b> fichas</div>
+<div class="wallet"><div id="cubaClock" class="clock" title="Hora de Cuba">🇨🇺 <b class="clockTime">--:--:--</b> <small class="clockDate">—</small></div><div class="wallet-bal"><span>🪙</span> <b id="topBalance">0</b> fichas</div></div>
 <div class="wrap">
 <div class="brand"><h1>♛ CASINO EL DORADO 🪙</h1><p>Casino el Dorado</p></div>
 
@@ -1573,7 +1578,29 @@ function triggerWinRain(){
   setTimeout(()=>{ if(current) startPortalRain(); else stopPortalRain(); }, 5000);
 }
 
+/* ---------------- reloj: hora de Cuba ---------------- */
+function startCubaClock(){
+  const box = document.getElementById("cubaClock");
+  if(!box) return;
+  const timeEl = box.querySelector(".clockTime");
+  const dateEl = box.querySelector(".clockDate");
+  const mk = loc => ({
+    t: new Intl.DateTimeFormat(loc, { timeZone:"America/Havana", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" }),
+    d: new Intl.DateTimeFormat(loc, { timeZone:"America/Havana", weekday:"short", day:"2-digit", month:"short" })
+  });
+  let f;
+  try{ f = mk("es-CU"); }catch(e){ f = mk("es"); }
+  const tick = ()=>{
+    const now = new Date();
+    if(timeEl) timeEl.textContent = f.t.format(now);
+    if(dateEl) dateEl.textContent = f.d.format(now).replace(/\./g, "");
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
 /* ---------------- arranque ---------------- */
+startCubaClock();
 R1.subscribe();
 R2.subscribe();
 

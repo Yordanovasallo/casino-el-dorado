@@ -1223,7 +1223,29 @@ function triggerWinRain(){
   setTimeout(()=>{ if(current) startPortalRain(); else stopPortalRain(); }, 5000);
 }
 
+/* ---------------- reloj: hora de Cuba ---------------- */
+function startCubaClock(){
+  const box = document.getElementById("cubaClock");
+  if(!box) return;
+  const timeEl = box.querySelector(".clockTime");
+  const dateEl = box.querySelector(".clockDate");
+  const mk = loc => ({
+    t: new Intl.DateTimeFormat(loc, { timeZone:"America/Havana", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" }),
+    d: new Intl.DateTimeFormat(loc, { timeZone:"America/Havana", weekday:"short", day:"2-digit", month:"short" })
+  });
+  let f;
+  try{ f = mk("es-CU"); }catch(e){ f = mk("es"); }
+  const tick = ()=>{
+    const now = new Date();
+    if(timeEl) timeEl.textContent = f.t.format(now);
+    if(dateEl) dateEl.textContent = f.d.format(now).replace(/\./g, "");
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
 /* ---------------- arranque ---------------- */
+startCubaClock();
 R1.subscribe();
 R2.subscribe();
 
