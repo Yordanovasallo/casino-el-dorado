@@ -1229,16 +1229,14 @@ function startCubaClock(){
   if(!box) return;
   const timeEl = box.querySelector(".clockTime");
   const dateEl = box.querySelector(".clockDate");
-  const mk = loc => ({
-    t: new Intl.DateTimeFormat(loc, { timeZone:"America/Havana", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" }),
-    d: new Intl.DateTimeFormat(loc, { timeZone:"America/Havana", weekday:"short", day:"2-digit", month:"short" })
-  });
-  let f;
-  try{ f = mk("es-CU"); }catch(e){ f = mk("es"); }
+  const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone:"America/Havana", hour:"numeric", minute:"2-digit", second:"2-digit", hour12:true });
+  let dateFmt;
+  try{ dateFmt = new Intl.DateTimeFormat("es-CU", { timeZone:"America/Havana", weekday:"short", day:"2-digit", month:"short" }); }
+  catch(e){ dateFmt = new Intl.DateTimeFormat("es", { timeZone:"America/Havana", weekday:"short", day:"2-digit", month:"short" }); }
   const tick = ()=>{
     const now = new Date();
-    if(timeEl) timeEl.textContent = f.t.format(now);
-    if(dateEl) dateEl.textContent = f.d.format(now).replace(/\./g, "");
+    if(timeEl) timeEl.textContent = timeFmt.format(now).toLowerCase().replace(/\s?(am|pm)/, " $1");
+    if(dateEl) dateEl.textContent = dateFmt.format(now).replace(/\./g, "");
   };
   tick();
   setInterval(tick, 1000);
