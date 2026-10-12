@@ -181,6 +181,93 @@ body{overflow-x:hidden}}
 #scratchCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;transition:opacity .6s}
 #scratchMsg{border:1px solid rgba(245,196,81,.2);border-left:3px solid #f5c451;text-align:center}
 </style>
+<style id="domino-style">
+.trio-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.trio-top h2{margin:0}
+.trio-badges{margin-left:auto;display:flex;gap:8px}
+.pill{background:#131a2c;border:1px solid #2b3b59;border-radius:999px;padding:5px 14px;font-weight:800;font-size:13px;color:#e8ecf5;white-space:nowrap}
+.pill.gold{border-color:#f5c451;color:#f5c451;box-shadow:0 0 12px rgba(245,196,81,.25)}
+.trio-info{text-align:center;font-size:13px;margin:6px 0 4px;color:#9aa3b5}
+.trio-felt{position:relative;width:100%;aspect-ratio:16/9;min-height:320px;max-height:60vh;border-radius:50%/50%;margin:16px auto;background:radial-gradient(ellipse at 50% 40%,#1f7a52 0%,#14603e 45%,#0b3f28 78%,#062a1b 100%);box-shadow:0 0 0 6px #3a2c14,0 0 0 10px #6b5420,0 0 0 13px #241b0d,0 18px 44px #000b,inset 0 0 70px #0007;overflow:visible}
+.trio-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:2;pointer-events:none;width:70%}
+.trio-pot{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.5);border:1px solid rgba(245,196,81,.55);border-radius:999px;padding:7px 20px;font-weight:900;font-size:24px;color:#f5c451;text-shadow:0 0 12px rgba(245,196,81,.55);letter-spacing:.5px}
+.trio-pot .plabel{font-size:11px;letter-spacing:2px;color:#c9b47a;font-weight:800}
+.trio-roundbadge{display:inline-block;margin-top:6px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:3px 14px;font-size:12px;font-weight:800;color:#cbd3e1;letter-spacing:1px}
+.tseat{position:absolute;transform:translate(-50%,-50%);width:96px;text-align:center;z-index:3;transition:filter .3s,opacity .3s}
+.tav-wrap{position:relative;width:56px;height:56px;margin:0 auto}
+.tav{width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid #33456b;background:#131a2c;box-shadow:0 4px 12px #000a,inset 0 0 0 2px #00000055}
+.tav img{width:100%;height:100%;object-fit:cover;display:block}
+.tseat.me .tav{border-color:#f5c451}
+.tseat.turn .tav{border-color:#3ddc84}
+.tseat.winner .tav{border-color:#f5c451;box-shadow:0 0 24px #f5c451}
+.tring{position:absolute;inset:-6px;border-radius:50%;pointer-events:none;-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 4px));transition:background .3s linear}
+.tname{display:inline-block;margin-top:6px;background:rgba(6,10,20,.88);border:1px solid #2b3b59;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:800;color:#e8ecf5;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tseat.me .tname{border-color:#f5c451;color:#f5c451}
+.tstack{font-size:12px;font-weight:900;color:#f5c451;margin-top:3px;text-shadow:0 1px 3px #000}
+.tbet{display:inline-block;background:linear-gradient(180deg,#1f9d55,#157a40);border:1px solid #3ddc84;border-radius:999px;padding:1px 9px;font-size:11px;font-weight:900;color:#eafff3;margin-top:3px;box-shadow:0 2px 6px #0008}
+.tstatus{font-size:10px;color:#9aa3b5;margin-top:3px;min-height:12px;font-weight:700;letter-spacing:.3px}
+.tseat.winner .tname{background:#3a2c05;border-color:#f5c451;color:#f5c451}
+.dboard-row{display:flex;align-items:center;gap:6px;margin:14px 0 4px}
+.dend{color:#f5c451;font-weight:900;font-size:16px;padding:0 6px;white-space:nowrap;min-width:44px;text-align:center}
+.dchain{display:flex;align-items:center;gap:2px;overflow-x:auto;overflow-y:hidden;padding:8px 4px;flex:1;min-height:70px;scroll-behavior:smooth}
+.dchain-wrap{display:inline-flex;align-items:center;flex:0 0 auto}
+.ddom{display:inline-flex;align-items:stretch;background:linear-gradient(160deg,#fdfdf7,#e9e4d3);border:1px solid #b9a97a;border-radius:6px;box-shadow:0 3px 8px #0009;color:#15171f;font-weight:900;overflow:hidden;height:52px;flex:0 0 auto}
+.ddom .dhh{order:1;flex:1;display:flex;align-items:center;justify-content:center;min-width:22px;padding:0 5px;font-size:19px}
+.ddom .dhh.blank{color:transparent}
+.ddom .dmid{order:2;width:2px;background:#cbbc92;box-shadow:inset 1px 0 0 #fff8,inset -1px 0 0 #0002}
+.ddom.dbl{border-color:#c9a94a;box-shadow:0 3px 8px #0009,0 0 10px rgba(245,196,81,.35)}
+.ddom.small{height:38px}
+.ddom.small .dhh{font-size:14px;min-width:16px;padding:0 3px}
+#dmoHand{flex-wrap:wrap}
+#dmoHand .herolabel{position:static;width:100%;text-align:center}
+.ddom-pile{display:inline-flex;cursor:pointer;border-radius:8px;padding:3px;border:2px solid transparent;transition:.12s}
+.ddom-pile:not(.playable){cursor:default;opacity:.62}
+.ddom-pile.playable{border-color:#3ddc84;box-shadow:0 0 12px rgba(61,220,132,.5)}
+.ddom-pile.playable:hover{transform:translateY(-4px)}
+.ddom-pile.sel{border-color:#f5c451;box-shadow:0 0 14px rgba(245,196,81,.6);transform:translateY(-6px)}
+.salida-hint{color:#f5c451!important}
+.trio-hand{display:flex;gap:10px;justify-content:center;align-items:center;min-height:100px;margin:14px 0 4px;position:relative}
+.trio-hand .herolabel{font-size:11px;letter-spacing:2px;color:#9aa3b5;font-weight:800}
+.trio-actions{margin-top:6px}
+.tbet-bar{display:flex;flex-direction:column;gap:10px;align-items:center}
+.tbet-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+.tamt{display:flex;align-items:center;gap:6px;background:#131a2c;border:1px solid #2b3b59;border-radius:12px;padding:6px 8px}
+.tamt button{width:34px;height:34px;border-radius:9px;border:none;background:#22304d;color:#e8ecf5;font-size:18px;font-weight:900;cursor:pointer}
+.tamt button:hover{background:#2d3f66}
+.tamt input{width:96px;text-align:center;background:#0a1120;border:1px solid #2b3b59;border-radius:9px;color:#f5c451;font-size:18px;font-weight:900;padding:6px 4px}
+.tchips{display:flex;gap:7px}
+.chipbtn{border:1px solid #3ddc84;background:linear-gradient(180deg,rgba(46,204,113,.22),rgba(46,204,113,.08));color:#8ff0bd;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:900;cursor:pointer}
+.chipbtn:hover{background:rgba(46,204,113,.35)}
+.tbtn{border:none;border-radius:13px;padding:14px 20px;font-weight:900;font-size:15px;color:#fff;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.4),0 7px 16px #0008;transition:.1s;text-transform:uppercase;letter-spacing:.6px;min-width:118px}
+.tbtn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.4)}
+.tbtn.bet{background:linear-gradient(180deg,#34d17a,#1f9d55)}
+.tbtn.check{background:linear-gradient(180deg,#4a5b85,#33405f)}
+.tbtn.ghost2{background:linear-gradient(180deg,#2a3552,#1d2740);box-shadow:0 4px 0 rgba(0,0,0,.4)}
+.tbtn:disabled{opacity:.4;filter:grayscale(.7);cursor:not-allowed;transform:none}
+.tbet-hint{font-size:12px;color:#9aa3b5;text-align:center;font-weight:700}
+#dmoResult{text-align:center;border-left:3px solid #f5c451;background:linear-gradient(180deg,#1a1608,#131a2c)}
+.trio-hands{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.trio-h{background:#0a1120;border:1px solid #263552;border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.trio-h.win{border-color:#f5c451;box-shadow:0 0 16px rgba(245,196,81,.35)}
+.trio-h .hname{font-size:12px;font-weight:900;color:#e8ecf5}
+.trio-h .hh{font-size:12px;font-weight:900;color:#f5c451}
+.dmo-show{display:flex;flex-wrap:wrap;gap:3px;justify-content:center;max-width:230px}
+.fchip{position:absolute;font-size:22px;pointer-events:none;z-index:6;transition:transform .75s cubic-bezier(.25,.7,.35,1),opacity .75s;filter:drop-shadow(0 3px 5px #000a);will-change:transform,opacity}
+.tsnd{width:38px;height:38px;border-radius:50%;border:1px solid #2b3b59;background:#131a2c;color:#e8ecf5;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.tsnd:hover{border-color:#f5c451}
+@media (max-width:640px){
+  .trio-felt{aspect-ratio:4/3;min-height:300px}
+  .tseat{width:82px}
+  .tav-wrap{width:46px;height:46px}
+  .tav{width:46px;height:46px}
+  .tname{font-size:11px;padding:1px 7px}
+  .tstack{font-size:11px}
+  .trio-pot{font-size:19px;padding:6px 15px}
+  .tbtn{min-width:0;flex:1;padding:13px 10px;font-size:13px}
+  .tamt input{width:74px;font-size:16px}
+  .ddom{height:46px}
+}
+</style>
 </head>
 <body>
 <div id="chipRain" class="chip-rain"></div>
@@ -206,6 +293,7 @@ body{overflow-x:hidden}}
 <button class="ghost" style="height:190px;font-size:54px" onclick="R2.open()">⚡<div style="font-size:17px;margin-top:8px">Ruleta Rápida<br>5 fichas · 1 min</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="SC.open()">🎟️<div style="font-size:17px;margin-top:6px">Raspa y Gana<br>10 fichas · premios hasta 1000</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="BETS.open()">⚽<div style="font-size:17px;margin-top:6px">Apuestas Deportivas<br>fútbol y baloncesto · 1 · X · 2</div></button>
+<button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="DMO.open()">🁢<div style="font-size:17px;margin-top:6px">Dominó<br>2–4 jugadores · apuesta libre</div></button>
 </div></div></div>
 
 <section id="rouletteGame" class="card hidden">
@@ -282,6 +370,34 @@ body{overflow-x:hidden}}
 <button id="betPlaceBtn" class="primary" style="width:auto" onclick="BETS.place()">Apostar</button>
 <button class="ghost" style="width:auto" onclick="BETS.cancel()">Cancelar</button>
 </div>
+</section>
+
+<section id="dominoGame" class="card hidden">
+<div class="trio-top">
+  <button class="ghost" style="width:auto" onclick="DMO.close()">← Volver</button>
+  <h2>🁢 Dominó</h2>
+  <div class="trio-badges"><button id="dmoSnd" class="tsnd" onclick="DMO.toggleSound()" title="Sonido">🔊</button><span id="dmoTimer" class="pill gold">--</span></div>
+</div>
+<div class="trio-info">Mesa multijugador 2–4 · doble-nueve · apuesta libre antes de jugar · la casa retiene 1% del bote</div>
+
+<div class="trio-felt" id="dmoFelt">
+  <div class="trio-center">
+    <div class="trio-pot"><span class="plabel">BOTE</span><span id="dmoPot">0</span></div>
+    <div id="dmoRound" class="trio-roundbadge">Esperando jugadores</div>
+  </div>
+  <div id="dmoSeats"></div>
+</div>
+
+<div class="dboard-row">
+  <span id="dmoLeft" class="dend">◀ ·</span>
+  <div id="dmoBoard" class="dchain"></div>
+  <span id="dmoRight" class="dend">· ▶</span>
+</div>
+
+<div id="dmoHand" class="trio-hand"></div>
+<div id="dmoActions" class="trio-actions"></div>
+<div id="dmoResult" class="notice hidden" style="margin-top:10px"></div>
+<div id="dmoMsg" class="notice" style="margin-top:10px"></div>
 </section>
 
 <section id="admin" class="card hidden"><h2>Panel de administración</h2><div class="grid"><div><div class="muted">Usuarios</div><div id="adminUsers" class="balance">0</div></div><div><div class="muted">Fichas en circulación</div><div id="adminBalance" class="balance">0</div></div></div>
@@ -1229,6 +1345,527 @@ const BETS = (function(){
   function cancel(){ hideBar(); renderEvents(); }
 
   return {open, close, load, choose, place, cancel, adminSave, adminRefresh, adminSettle, adminPanelShown};
+})();
+
+
+/* ---------------- Dominó (2-4 jugadores, apuesta libre, estilo GGPoker) ---------------- */
+const DMO = (function(){
+  const $ = n=>document.getElementById(n);
+  const ROUND_MS = 45000;
+  let state=null, pollInt=null, busy=false, prevPhase=null;
+  let people=null, lastSig=null, pending=null;
+
+  function me(){
+    if(!state || !current) return null;
+    return (state.players||[]).find(p=>p.id===current.id) || null;
+  }
+  function msg(t){ const b=$("dmoMsg"); if(b) b.innerHTML = t || ""; }
+  function ringColor(p){ return p > 50 ? "#3ddc84" : p > 25 ? "#f5c451" : "#ff6b5e"; }
+  function myTurn(){
+    return state && state.phase==="playing" &&
+      state.players[state.turn] && state.players[state.turn].id===current.id;
+  }
+  function isMine(){
+    const m = me();
+    return m && Array.isArray(m.hand);
+  }
+  function matches(t){
+    const L=state.left, R=state.right;
+    const a=Number(t[0]), b=Number(t[1]);
+    if(L===null && R===null) return {L:false,R:false};
+    const l = (t[0]===L||t[1]===L), r=(t[0]===R||t[1]===R);
+    return {L:l, R:r};
+  }
+  function onlySalida(){ return state && state.board && state.board.length===0; }
+  function isSalida(t){
+    return state && state.salida && t[0]===state.salida[0] && t[1]===state.salida[1];
+  }
+
+  /* ---- sonido (Web Audio, sin archivos) ---- */
+  let soundOn = localStorage.getItem("dmo_snd") !== "0";
+  let actx = null;
+  function audio(){
+    if(!actx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      actx = new AC();
+    }
+    if(actx.state === "suspended") actx.resume().catch(()=>{});
+    return actx;
+  }
+  function knock(){
+    if(!soundOn) return;
+    try{
+      const ctx = audio(); if(!ctx) return;
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(180, t);
+      o.frequency.exponentialRampToValueAtTime(95, t + 0.06);
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.11);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + 0.12);
+    }catch(e){}
+  }
+  function chipSound(count){
+    if(!soundOn) return;
+    try{
+      const ctx = audio(); if(!ctx) return;
+      const n = count || 7, t0 = ctx.currentTime;
+      for(let i=0;i<n;i++){
+        const t = t0 + i*0.055;
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "triangle";
+        o.frequency.setValueAtTime(850 + Math.random()*850, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.22, t + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.17);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + 0.19);
+      }
+    }catch(e){}
+  }
+  function toggleSound(){
+    soundOn = !soundOn;
+    localStorage.setItem("dmo_snd", soundOn ? "1" : "0");
+    paintSound();
+    if(soundOn) chipSound(3);
+  }
+  function paintSound(){
+    const b = $("dmoSnd");
+    if(b){ b.textContent = soundOn ? "🔊" : "🔇"; b.style.opacity = soundOn ? "1" : ".55"; }
+  }
+
+  /* ---- fichas volando al ganador ---- */
+  function flyChips(){
+    const felt = $("dmoFelt"), seats = $("dmoSeats");
+    if(!felt || !seats) return;
+    const win = seats.querySelector(".tseat.winner");
+    if(!win) return;
+    const fr = felt.getBoundingClientRect(), wr = win.getBoundingClientRect();
+    const cx = fr.width/2, cy = fr.height/2;
+    const tx = (wr.left + wr.width/2) - fr.left;
+    const ty = (wr.top + wr.height/2) - fr.top;
+    const N = 14;
+    for(let i=0;i<N;i++){
+      const chip = document.createElement("div");
+      chip.className = "fchip";
+      chip.textContent = "🪙";
+      chip.style.left = (cx - 11 + (Math.random()*24-12)) + "px";
+      chip.style.top  = (cy - 11 + (Math.random()*24-12)) + "px";
+      felt.appendChild(chip);
+      const dx = tx - cx, dy = ty - cy;
+      setTimeout(()=>{
+        chip.style.transform = `translate(${dx + (Math.random()*36-18)}px, ${dy + (Math.random()*36-18)}px) scale(.55) rotate(${(Math.random()*360)|0}deg)`;
+        chip.style.opacity = "0";
+      }, 40 + i*45);
+      setTimeout(()=>chip.remove(), 40 + i*45 + 900);
+    }
+    chipSound(14);
+  }
+
+  async function ensurePeople(ps){
+    if(!people) people = {};
+    if(!ps.length) return;
+    const need = ps.map(p=>p.id).filter(id=>!(id in people));
+    if(!need.length) return;
+    try{
+      const rows = await sbRead("v_users?select=id,avatar,balance&id=in.(" + need.map(x=>encodeURIComponent(x)).join(",") + ")");
+      (rows||[]).forEach(r=>{ people[r.id] = { avatar: r.avatar || "", balance: Number(r.balance)||0 }; });
+    }catch(e){ console.warn("dmo people:", e.message); }
+    need.forEach(id=>{ if(!(id in people)) people[id] = { avatar:"", balance:null }; });
+  }
+
+  async function sync(){
+    if(busy) return; busy = true;
+    try{
+      const st = await sbRpc("dom_tick", { p_now: Date.now() });
+      if(st){
+        const ph = st.phase;
+        const oldPhase = prevPhase;
+        prevPhase = ph;
+        const oldDone = (oldPhase==="done");
+        state = st;
+        const ps = st.players || [];
+        const sig = ph + "|" + st.pot + "|" + (st.board||[]).length + "|" + st.passes + "|" + ps.map(p=>p.id).sort().join(",");
+        if(sig !== lastSig){ lastSig = sig; await ensurePeople(ps); }
+        if(current && people && people[current.id]){
+          people[current.id].balance = current.balance;
+          if(current.avatar) people[current.id].avatar = current.avatar;
+        }
+        render();
+        if(ph === "done" && !oldDone && st.result && st.result.winner && st.result.winner !== null) {
+          flyChips();
+          setTimeout(()=>triggerWinRain&&triggerWinRain(), 500);
+        }
+        if(current) refreshBal();
+      }
+    }catch(e){ console.warn("dmo:", e.message); }
+    finally{ busy = false; }
+  }
+
+  function refreshBal(){
+    if(!current) return;
+    sbRpc("get_user", { p_id: current.id }).then(u=>{
+      if(u && u.id){ current.balance = u.balance; if(people && people[u.id]) people[u.id].balance = u.balance; updateBalanceUI(); }
+    }).catch(()=>{});
+  }
+
+  /* Asientos en elipse, tú abajo */
+  function seatLayout(){
+    const ps = state.players || [];
+    const n = ps.length;
+    if(!n) return [];
+    let myIdx = ps.findIndex(p=>current && p.id===current.id);
+    if(myIdx < 0) myIdx = 0;
+    const rem = Math.max(0, Number(state.round_end||0) - Date.now());
+    const pct = Math.min(100, Math.max(0, (rem/ROUND_MS)*100));
+    const out = [];
+    for(let k=0;k<n;k++){
+      const j = (myIdx + k) % n;
+      const p = ps[j];
+      const ang = (90 + k*(360/n)) * Math.PI/180;
+      const isTurn = state.phase==="playing" && j===state.turn;
+      out.push({
+        p, j,
+        x: 50 + 38*Math.cos(ang),
+        y: 50 + 35*Math.sin(ang),
+        isMe: !!(current && p.id === current.id),
+        turn: (state.phase==="betting" && !p.acted) || isTurn,
+        pct
+      });
+    }
+    return out;
+  }
+
+  function winnerId(){
+    return (state.phase === "done" && state.result && state.result.winner) ? state.result.winner : null;
+  }
+
+  function renderSeats(){
+    const box = $("dmoSeats");
+    const seats = seatLayout();
+    if(!seats.length){ box.innerHTML = ""; return; }
+    const win = winnerId();
+    box.innerHTML = seats.map(s=>{
+      const p = s.p;
+      const info = (people && people[p.id]) || {};
+      const av = info.avatar || defaultAvatar();
+      const stack = (info.balance != null) ? info.balance : "…";
+      const ring = s.turn ? `<div class="tring" style="background:conic-gradient(${ringColor(s.pct)} ${s.pct}%, rgba(255,255,255,.14) 0)"></div>` : "";
+      const bet = Number(p.bet) || 0;
+      const betHtml = bet > 0 ? `<div class="tbet">+${bet}</div>` : `<div class="tbet" style="visibility:hidden">+0</div>`;
+      let status = "";
+      if(state.phase==="betting") status = s.turn ? "APOSTANDO…" : (p.acted ? "✓" : "");
+      else if(state.phase==="playing") status = s.turn ? "JUGANDO…" : ("🁢 " + p.hand_len);
+      const cls = ["tseat", s.isMe?"me":"", s.turn?"turn":"", (win && p.id===win)?"winner":""].join(" ");
+      return `<div class="${cls}" style="left:${s.x}%;top:${s.y}%">
+        <div class="tav-wrap"><div class="tav"><img src="${av}" alt=""></div>${ring}</div>
+        <div class="tname">${escapeHtml(p.name)}${s.isMe?" (tú)":""}</div>
+        <div class="tstack">🪙 ${stack}</div>
+        ${betHtml}
+        <div class="tstatus">${status}</div>
+      </div>`;
+    }).join("");
+  }
+
+  /* ---- cadena de dominó (izquierda -> derecha) ---- */
+  function otherHalf(v, m){ return (v[0]===m ? v[1] : v[0]); }
+  function domTileHtml(v, cls){
+    const a = Number(v[0]), b = Number(v[1]);
+    const half = x => `<div class="dhh ${x===0?"blank":""}">${x===0?"":x}</div>`;
+    return `<div class="ddom ${cls||""}"><div class="dmid"></div>${half(a)}${half(b)}</div>`;
+  }
+  function renderChain(){
+    const box = $("dmoBoard");
+    const bd = state.board || [];
+    if(!bd.length){ box.innerHTML = ""; box.dataset.any = "0"; return; }
+    const leftChain = bd.slice(1).filter(x=>x.side==="L").reverse();
+    const rightChain = bd.slice(1).filter(x=>x.side==="R");
+    let cur = state.left;
+    const items = [];
+    for(const x of leftChain){
+      const m = (x.v[0]===cur || x.v[1]===cur) ? cur : null;
+      const v = (x.v[0]===m) ? [x.v[1], m] : [m, x.v[0]];
+      items.push({v, who: x.n});
+      cur = otherHalf(x.v, m !== null ? m : cur);
+    }
+    const sal = bd[0].v;
+    items.push({v: [cur, sal[1]], who: bd[0].n, first:true});
+    cur = sal[1];
+    for(const x of rightChain){
+      const m = (x.v[0]===cur || x.v[1]===cur) ? cur : null;
+      const v = (x.v[0]===m) ? [m, x.v[1]] : [x.v[0], m];
+      items.push({v, who: x.n});
+      cur = otherHalf(x.v, m !== null ? m : cur);
+    }
+    box.innerHTML = items.map(it=>{
+      const dbl = it.v[0]===it.v[1];
+      return `<div class="dchain-wrap" title="${escapeHtml(it.who||"")}">${domTileHtml(it.v, dbl?"dbl":"")}</div>`;
+    }).join("");
+    box.dataset.any = "1";
+    box.scrollLeft = box.scrollWidth;
+  }
+
+  function renderEnds(){
+    const lv = (state.left==null) ? "·" : state.left;
+    const rv = (state.right==null) ? "·" : state.right;
+    $("dmoLeft").textContent = "◀ " + lv;
+    $("dmoRight").textContent = rv + " ▶";
+  }
+
+  /* ---- mi mano (10 fichas) ---- */
+  function renderHand(){
+    const box = $("dmoHand");
+    const m = me();
+    if((state.phase==="betting" || state.phase==="playing") && m && Array.isArray(m.hand)){
+      const mine = myTurn();
+      const hand = m.hand.slice().sort((x,y)=> (y[0]+y[1])-(x[0]+x[1]));
+      box.innerHTML = '<span class="herolabel">TUS FICHAS' + (state.phase==="betting" ? " · apuesta libre" : "") + '</span>' +
+        hand.map((t,i)=>{
+          const dbl = t[0]===t[1];
+          let playable = false;
+          if(mine && !onlySalida()){ const mm = matches(t); playable = (mm.L || mm.R); }
+          if(mine && onlySalida() && isSalida(t)) playable = true;
+          const sel = (pending===t[0]*10+t[1]) ? " sel" : "";
+          return `<div class="ddom-pile ${dbl?"dbl":""} ${playable?"playable":""}${sel}"
+            ${playable?`onclick="DMO.pick(${t[0]*10+t[1]})"`:""}>
+            ${domTileHtml(t,"")}</div>`;
+        }).join("");
+      if(mine && onlySalida()){
+        box.innerHTML += '<div class="herolabel salida-hint">La salida es la doble más alta: ' +
+          (state.salida?state.salida[0]+"-"+state.salida[1]:"") + '</div>';
+      }
+    } else {
+      box.innerHTML = "";
+    }
+  }
+
+  function renderActions(){
+    const box = $("dmoActions");
+    if(!current){ box.innerHTML = ""; return; }
+    if(current.admin){ box.innerHTML = '<div class="tbet-hint">La cuenta de administración no puede jugar.</div>'; return; }
+    const ps = state.players || [];
+    const m = me();
+    const seated = !!m;
+
+    if(state.phase === "betting"){
+      if(!seated){
+        box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="DMO.join()">🪑 Sentarse</button></div>
+          <div class="tbet-hint" style="margin-top:8px">Llega con tu ficha. La mesa reparte sola al haber 2 (hasta 4).</div>`;
+        return;
+      }
+      if(m.acted){ box.innerHTML = '<div class="tbet-hint">Esperando las apuestas de los demás…</div>'; return; }
+      const bal = Math.max(0, Math.floor(Number(current.balance)||0));
+      const def = Math.min(10, bal);
+      box.innerHTML = `
+        <div class="tbet-bar">
+          <div class="tchips">
+            <button class="chipbtn" onclick="DMO.setBet(10)">10</button>
+            <button class="chipbtn" onclick="DMO.setBet(25)">25</button>
+            <button class="chipbtn" onclick="DMO.setBet(50)">50</button>
+            <button class="chipbtn" onclick="DMO.setBet(100)">100</button>
+            <button class="chipbtn" onclick="DMO.setBet(${bal})">TODO</button>
+          </div>
+          <div class="tslider"><input id="dmoBetSlider" type="range" min="0" max="${Math.max(1,bal)}" step="5" value="${def}" oninput="DMO.setBet(this.value)"></div>
+          <div class="tbet-row">
+            <div class="tamt">
+              <button type="button" onclick="DMO.amt(-5)">−</button>
+              <input id="dmoBetAmt" type="number" min="0" max="${bal}" value="${def}">
+              <button type="button" onclick="DMO.amt(5)">＋</button>
+            </div>
+            <button class="tbtn check" onclick="DMO.bet(0)">Pasar (0)</button>
+            <button class="tbtn bet" onclick="DMO.bet()">Apostar</button>
+          </div>
+        </div>`;
+      return;
+    }
+
+    if(state.phase === "playing"){
+      if(!seated){
+        box.innerHTML = `<div class="tbet-hint">Hay una partida en curso. Espera a que termine.</div>`; return;
+      }
+      if(mine && myTurn()){
+        const mm0 = matches(me().hand[0] || []);
+        const canPlay = me().hand.some(t=>{ if(onlySalida()) return isSalida(t); const m2=matches(t); return m2.L||m2.R; });
+        if(canPlay){
+          if(pending===null)
+            box.innerHTML = `<div class="tbet-hint">Tu turno: toca una ficha que calce${onlySalida()?" (la salida)":""}.</div>`;
+          else
+            box.innerHTML = `<div class="tbet-row"><span class="tbet-hint">¿Por qué extremo?</span>
+              <button class="tbtn check" onclick="DMO.playPair('L')">◀ Izquierda</button>
+              <button class="tbtn bet" onclick="DMO.playPair('R')">Derecha ▶</button></div>`;
+        } else if((state.pozo||0) > 0){
+          box.innerHTML = `<div class="tbet-row"><button class="tbtn ghost2" onclick="DMO.draw()">🎲 Robar del trago (quedan ${state.pozo})</button></div>
+            <div class="tbet-hint" style="margin-top:8px">No tienes ficha que calce. Debes robar del pozo, no pasar.</div>`;
+        } else {
+          box.innerHTML = `<div class="tbet-row"><button class="tbtn ghost2" onclick="DMO.pass()">Pasar</button></div>
+            <div class="tbet-hint" style="margin-top:8px">Pozo vacío y sin ficha que calce. Pasas.</div>`;
+        }
+        return;
+      }
+      const turnP = ps[state.turn];
+      box.innerHTML = `<div class="tbet-hint">Esperando el turno de ${escapeHtml(turnP?turnP.name:"" )}…</div>`;
+      return;
+    }
+
+    if(!seated){
+      box.innerHTML = `<div class="tbet-row"><button class="tbtn bet" onclick="DMO.join()">🪑 Sentarse</button></div>
+        <div class="tbet-hint" style="margin-top:8px">${ps.length<2 ? "Se reparte sola al sentarse el 2º (salen hasta 4)." : "La próxima mano reparte sola…"}</div>`;
+      return;
+    }
+    const hint = state.phase==="done"
+      ? "Mano terminada. La siguiente reparte sola…"
+      : (ps.length<2 ? "Se reparte automáticamente al sentarse el 2º jugador." : "Esperando a los jugadores…");
+    box.innerHTML = `
+      <div class="tbet-row">
+        <button class="tbtn ghost2" onclick="DMO.leave()">Levantarse</button>
+      </div>
+      <div class="tbet-hint" style="margin-top:8px">${hint}</div>`;
+  }
+
+  function renderResult(){
+    const box = $("dmoResult");
+    if(state.phase !== "done" || !state.result){ box.classList.add("hidden"); box.innerHTML=""; return; }
+    const r = state.result;
+    const kindTxt = r.kind==="trancado" ? " · Trancado (menos puntos gana)" : " · Jugó su última ficha";
+    let h = `<strong>🏆 ${escapeHtml(r.name || "Nadie")} gana ${Number(r.prize)||0} fichas${kindTxt}</strong>`;
+    if(r.kind==="trancado") h += `<br><span class="muted">Puntos del ganador: ${r.min_pips}</span>`;
+    if(Array.isArray(r.hands) && r.hands.length){
+      const win = r.winner;
+      h += '<div class="trio-hands">' + r.hands.map(x=>
+        `<div class="trio-h ${x.id===win?"win":""}"><div class="hname">${escapeHtml(x.name)}</div>
+         <div class="dmo-show">${(x.tiles||[]).map(t=>domTileHtml(t,"small")).join("")}</div>
+         <div class="hh">${x.pips} pts · ${(x.tiles||[]).length} fichas</div></div>`
+      ).join("") + '</div>';
+    }
+    box.innerHTML = h;
+    box.classList.remove("hidden");
+  }
+
+  function renderTimer(){
+    const t = $("dmoTimer");
+    if(!t) return;
+    if(!state || state.phase==="waiting"){ t.textContent = psLen()<2 ? "--" : "lobby…"; return; }
+    if(state.phase==="done"){ t.textContent = "listo…"; return; }
+    const rem = Math.max(0, Number(state.round_end||0) - Date.now());
+    t.textContent = (state.phase==="betting" ? "APUESTA · " : "TURNO · ") + Math.ceil(rem/1000) + "s";
+  }
+  function psLen(){ return (state && state.players) ? state.players.length : 0; }
+
+  function render(){
+    if(!state) return;
+    $("dmoPot").textContent = Number(state.pot)||0;
+    const badge = $("dmoRound");
+    if(badge){
+      if(state.phase === "betting") badge.textContent = "APUESTA LIBRE (" + psLen() + " jugs.)";
+      else if(state.phase === "playing") badge.textContent = "EN JUEGO · pozo " + (state.pozo||0);
+      else if(state.phase === "done") badge.textContent = "MANO TERMINADA";
+      else badge.textContent = psLen() ? "LISTO PARA JUGAR" : "ESPERANDO JUGADORES";
+    }
+    renderChain(); renderEnds(); renderSeats(); renderHand(); renderActions(); renderResult(); renderTimer();
+  }
+
+  function open(){
+    $("dominoGame").classList.remove("hidden");
+    document.getElementById("mainGames").classList.add("hidden");
+    document.body.classList.add("trioview");
+    if(!pollInt) pollInt = setInterval(sync, 1200);
+    lastSig = null;
+    paintSound();
+    sync(); window.scrollTo(0,0);
+  }
+  function close(){
+    $("dominoGame").classList.add("hidden");
+    document.getElementById("mainGames").classList.remove("hidden");
+    document.body.classList.remove("trioview");
+    if(pollInt){ clearInterval(pollInt); pollInt = null; }
+    state = null; prevPhase = null; people = null; lastSig = null; pending = null;
+  }
+
+  function guard(){ if(!current) return alert("Inicia sesión para jugar."); if(current.admin) return alert("La cuenta de administración no puede jugar."); return false; }
+
+  function setBet(v){
+    const el = $("dmoBetAmt"); if(!el || !current) return;
+    const bal = Math.max(0, Math.floor(Number(current.balance)||0));
+    const vv = Math.max(0, Math.min(bal, Math.floor(Number(v)||0)));
+    el.value = vv;
+    const sl = $("dmoBetSlider"); if(sl) sl.value = vv;
+  }
+  function amt(d){
+    const el = $("dmoBetAmt"); if(!el) return;
+    setBet((Math.floor(Number(el.value))||0) + d);
+  }
+
+  function tileById(id){
+    const m = me(); if(!m || !Array.isArray(m.hand)) return null;
+    return m.hand.find(t=> t[0]*10+t[1]===id) || null;
+  }
+  function pick(id){
+    if(!guard()) return;
+    if(!myTurn()) return;
+    const t = tileById(id);
+    if(!t) return;
+    if(onlySalida()){ if(isSalida(t)) { play(t,"L"); } return; }
+    const mm = matches(t);
+    if(mm.L && mm.R){ pending=id; render(); return; }
+    if(mm.L){ play(t,"L"); return; }
+    if(mm.R){ play(t,"R"); return; }
+  }
+  function playPair(side){
+    if(pending===null) return;
+    const t = tileById(pending);
+    if(!t) return;
+    const mm = matches(t);
+    if(side==="L" && !mm.L) return;
+    if(side==="R" && !mm.R) return;
+    pending = null;
+    play(t, side);
+  }
+  async function play(t, side){
+    try{ knock(); state = await sbRpc("dom_play", { p_user_id: current.id, p_tile: t, p_side: side, p_now: Date.now() }); render(); }
+    catch(e){ alert(e.message || "No se pudo jugar esa ficha."); }
+    render();
+  }
+
+  async function join(){
+    if(guard()) return;
+    try{ state = await sbRpc("dom_join", { p_user_id: current.id }); await ensurePeople(state.players||[]); render(); refreshBal(); }
+    catch(e){ alert(e.message || "No se pudo sentar."); }
+  }
+  async function leave(){
+    if(guard()) return;
+    if(!confirm("¿Levantarte de la mesa?")) return;
+    try{ state = await sbRpc("dom_leave", { p_user_id: current.id }); render(); refreshBal(); }
+    catch(e){ alert(e.message || "No pudiste levantarte."); }
+  }
+  async function draw(){
+    if(guard()) return;
+    try{ state = await sbRpc("dom_draw", { p_user_id: current.id }); render(); }
+    catch(e){ alert(e.message || "No puedes robar ahora."); }
+  }
+  async function pass(){
+    if(guard()) return;
+    try{ state = await sbRpc("dom_pass", { p_user_id: current.id }); render(); }
+    catch(e){ alert(e.message || "No puedes pasar ahora."); }
+  }
+  async function bet(amtV){
+    if(guard()) return;
+    let v;
+    if(amtV === 0) v = 0;
+    else{
+      const el = $("dmoBetAmt");
+      v = Math.floor(Number(el ? el.value : NaN));
+      if(!Number.isFinite(v) || v < 0) return alert("Escribe una apuesta válida (0 = pasar).");
+      if(v > Number(current.balance)) return alert("No tienes suficientes fichas.");
+    }
+    try{ chipSound(3); state = await sbRpc("dom_bet", { p_user_id: current.id, p_amount: v, p_now: Date.now() }); render(); refreshBal(); }
+    catch(e){ alert(e.message || "No se pudo apostar."); }
+  }
+
+  return {open,close,join,leave,bet,setBet,amt,pick,playPair,draw,pass,toggleSound};
 })();
 
 
