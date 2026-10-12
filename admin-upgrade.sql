@@ -53,20 +53,19 @@ end $$;
 -- ---------- send_fichas: acepta el número de ID o el usuario ----------
 create or replace function public.send_fichas(p_from text, p_to text, p_amount integer, p_now bigint)
 returns void language plpgsql security definer set search_path = public as $$
-declare me users; to_u users; v_to text := p_to; date_txt text;
+declare me users; to_u users; date_txt text;
 begin
   select * into me from users where id = p_from for update;
   if not found then raise exception 'Sesión expirada. Cierra y vuelve a entrar.'; end if;
-  if p_to ~ '^[0-9]+$' then
-    select id into v_to from users where num = p_to::bigint;
-    if v_to is null then raise exception 'No existe ningún usuario con ese ID.'; end if;
+  if p_to !~ '^[0-9]+$' then
+    raise exception 'El destinatario debe ser el número de ID (solo números).';
   end if;
-  if p_from = v_to then raise exception 'No puedes enviarte fichas a ti mismo.'; end if;
-  select * into to_u from users where id = v_to for update;
-  if not found then raise exception 'No existe ningún usuario con ese ID.'; end if;
+  select * into to_u from users where num = p_to::bigint for update;
+  if not found then raise exception 'No existe ningún usuario con ese número de ID.'; end if;
+  if to_u.id = p_from then raise exception 'No puedes enviarte fichas a ti mismo.'; end if;
   if me.balance < p_amount then raise exception 'Saldo insuficiente.'; end if;
   update users set balance = balance - p_amount where id = p_from;
-  update users set balance = balance + p_amount where id = v_to;
+  update users set balance = balance + p_amount where id = to_u.id;
   date_txt := to_char(now(), 'DD/MM/YYYY HH24:MI:SS');
   insert into ledger (date, uname, type, amount, detail, ts)
   values (date_txt, me.name, 'Transferencia', p_amount,

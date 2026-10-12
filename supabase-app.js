@@ -225,14 +225,15 @@ async function changePassword(){
 }
 
 async function sendFichas(){
-  const target = prompt("Número de ID del destinatario (el número que sale en su perfil):");
+  const target = prompt("Número de ID del destinatario (el número de su perfil, ej: 1003):");
   if(target===null) return;
+  const idNum = String(target).replace(/[^0-9]/g,"");
+  if(!idNum) return alert("Escribe el número de ID del destinatario (solo números).");
+  if(String(current.num)===idNum) return alert("No puedes enviarte fichas a ti mismo.");
   const amount = Number(prompt("Cantidad de fichas:"));
-  const toId = String(target).trim().replace(/[^0-9a-záéíóúñ_]/gi,"").toLowerCase();
-  if(!toId || !Number.isFinite(amount) || amount<=0) return alert("Datos no válidos.");
-  if(toId===current.id) return alert("No puedes enviarte fichas a ti mismo.");
+  if(!Number.isFinite(amount) || amount<=0) return alert("Cantidad no válida.");
   try{
-    await sbRpc("send_fichas", { p_from: current.id, p_to: toId, p_amount: amount, p_now: Date.now() });
+    await sbRpc("send_fichas", { p_from: current.id, p_to: idNum, p_amount: amount, p_now: Date.now() });
     alert("Transferencia realizada.");
   }catch(e){ alert(e.message||"Error en la transferencia."); }
 }
