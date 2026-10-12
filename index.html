@@ -390,6 +390,7 @@ const sbRpc = (fn, body) => api("/rpc/" + fn, { method: "POST", body: JSON.strin
 const sbRead = path => api("/" + path, { method: "GET" });
 
 let current = null;
+let token = null;
 let pendingReveal = null;
 let userTimer = null;
 let adminTimer = null;
@@ -485,7 +486,7 @@ function startUserPoll(){
   userTimer = setInterval(async ()=>{
     if(!current) return;
     try{
-      const u = await sbRpc("get_user", { p_id: current.id });
+      const u = await sbRpc("get_user", { p_token: token });
       if(u && u.id){ current = u; updateBalanceUI(); updateAgentUI(); }
     }catch(e){}
   }, 2000);
@@ -500,26 +501,29 @@ async function register(){
   const docId = normName(raw);
   if(!docId || docId==="." || docId==="..") return showMsg("Nombre de usuario no válido.");
   if(docId.length>24) return showMsg("El usuario debe tener máximo 24 caracteres.");
-  const isAdmin = docId==="admin";
   const agEl = document.getElementById("rAgent");
   const agCode = (agEl ? agEl.value : "").trim();
+  let reg;
   try{
-    await sbRpc("register_user", {
+    reg = await sbRpc("register_user", {
       p_id: docId,
-      p_name: isAdmin ? "admin" : raw,
+      p_name: docId==="admin" ? "admin" : raw,
       p_pass: await hashPass(p),
-      p_balance: isAdmin ? 0 : SALDO_INICIAL,
-      p_admin: isAdmin,
+      p_balance: 0,
+      p_admin: false,
       p_created: Date.now()
     });
   }catch(e){ return showMsg(msgDeError(e)); }
+  if(!reg || !reg.token) return showMsg("No se pudo crear la cuenta. Intenta de nuevo.");
+  token = reg.token;
   let refErr = null;
-  if(agCode && !isAdmin){
-    try{ await sbRpc("apply_referral", { p_user_id: docId, p_code: agCode }); }
+  if(agCode){
+    try{ await sbRpc("apply_referral", { p_token: token, p_code: agCode }); }
     catch(e){ refErr = e.message || "código de agente no válido"; }
   }
-  localStorage.setItem("casino_uid", docId);
-  current = { id:docId, name:isAdmin?"admin":raw, balance:isAdmin?0:SALDO_INICIAL, avatar:"", admin:isAdmin };
+  const u = await sbRpc("get_user", { p_token: token });
+  current = u || { id:docId, name:raw, balance:0, avatar:"", admin:!!reg.admin };
+  localStorage.setItem("casino_token", token);
   await enter();
   showMsg(refErr ? ("Cuenta creada. Aviso: "+refErr) : "Cuenta creada correctamente.");
 }
@@ -530,9 +534,11 @@ async function login(){
   if(!docId || docId==="." || docId==="..") return showMsg("Usuario o contraseña incorrectos.");
   try{
     const u = await sbRpc("login", { p_id: docId, p_pass: await hashPass(p) });
-    if(!u || !u.id) return showMsg("Usuario o contraseña incorrectos.");
+    if(!u || !u.id || !u.token) return showMsg("Usuario o contraseña incorrectos.");
+    token = u.token;
+    delete u.token;
     current = u;
-    localStorage.setItem("casino_uid", docId);
+    localStorage.setItem("casino_token", token);
     await enter();
   }catch(e){ showMsg("No se pudo conectar: "+msgDeError(e)); }
 }
@@ -563,8 +569,8 @@ function logout(){
   stopPortalRain();
   stopUserPoll();
   stopAdminWatch();
-  localStorage.removeItem("casino_uid");
-  current = null; pendingReveal = null;
+  localStorage.removeItem("casino_token");
+  current = null; token = null; pendingReveal = null;
   document.getElementById("app").classList.add("hidden");
   document.getElementById("auth").classList.remove("hidden");
   liPass.value = "";
@@ -577,7 +583,7 @@ async function changePassword(){
   const p = prompt("Nueva contraseña:");
   if(!p) return;
   try{
-    await sbRpc("change_password", { p_id: current.id, p_pass: await hashPass(p) });
+    await sbRpc("change_password", { p_token: token, p_pass: await hashPass(p) });
     alert("Contraseña cambiada.");
   }catch(e){ alert("Error: "+e.message); }
 }
@@ -591,7 +597,7 @@ async function sendFichas(){
   const amount = Number(prompt("Cantidad de fichas:"));
   if(!Number.isFinite(amount) || amount<=0) return alert("Cantidad no válida.");
   try{
-    await sbRpc("send_fichas", { p_from: current.id, p_to: idNum, p_amount: amount, p_now: Date.now() });
+    await sbRpc("send_fichas", { p_token: token, p_to: idNum, p_amount: amount, p_now: Date.now() });
     alert("Transferencia realizada.");
   }catch(e){ alert(e.message||"Error en la transferencia."); }
 }
@@ -605,7 +611,7 @@ function uploadAvatar(){
     r.onload = async ()=>{
       try{
         const dataUrl = await shrinkImage(r.result, 128);
-        await sbRpc("set_avatar", { p_id: current.id, p_avatar: dataUrl });
+        await sbRpc("set_avatar", { p_token: token, p_avatar: dataUrl });
         current.avatar = dataUrl;
         document.getElementById("avatar").src = dataUrl;
       }catch(e){ alert("No se pudo subir la imagen: "+e.message); }
@@ -634,8 +640,8 @@ async function refreshAdmin(){
       sbRead("v_users?select=id,num,name,balance,admin"),
       sbRead("ledger?select=*&order=ts.desc&limit=150"),
       sbRead("scratch_stats?select=*&limit=1"),
-      sbRpc("admin_agent_list", { p_admin: current.id }),
-      sbRpc("admin_daily_profit", { p_admin: current.id })
+      sbRpc("admin_agent_list", { p_token: token }),
+      sbRpc("admin_daily_profit", { p_token: token })
     ]);
     usersCache = Array.isArray(ou) ? ou : [];
     ledgerCache = Array.isArray(ol) ? ol : [];
@@ -735,7 +741,7 @@ async function adminLoadStats(id){
   if(!box) return;
   box.innerHTML = '<div class="muted" style="padding:10px">Cargando datos…</div>';
   try{
-    const s = await sbRpc("admin_user_stats", { p_admin: current.id, p_user_id: id });
+    const s = await sbRpc("admin_user_stats", { p_token: token, p_user_id: id });
     adminSelStats = s;
     renderUserDetail(s);
   }catch(e){ box.innerHTML = '<div class="bad" style="padding:10px">'+escapeHtml(e.message||"Error al cargar.")+'</div>'; }
@@ -782,7 +788,7 @@ async function adminDeleteUser(id){
   const u = usersCache.find(x=>x.id===id) || {};
   if(!confirm("¿Eliminar definitivamente a "+(u.name||id)+" (#"+(u.num||"?")+")?\nSe borrarán su cuenta, sus apuestas y sus movimientos del historial. No se puede deshacer.")) return;
   try{
-    await sbRpc("admin_delete_user", { p_admin: current.id, p_user_id: id });
+    await sbRpc("admin_delete_user", { p_token: token, p_user_id: id });
     adminSelId = null; adminSelStats = null;
     const box = document.getElementById("adminUserDetail");
     if(box) box.innerHTML = '<div class="muted" style="padding:10px">Selecciona un usuario de la lista para ver sus datos.</div>';
@@ -804,7 +810,7 @@ async function adminAdjust(sign){
   if(!toId) return alert("Toca primero un usuario de la lista.");
   if(!Number.isFinite(a) || a<=0) return alert("Escribe una cantidad válida en fichas (número entero mayor que 0).");
   try{
-    await sbRpc("admin_adjust", { p_admin: current.id, p_to: toId, p_amount: a, p_sign: sign, p_now: Date.now() });
+    await sbRpc("admin_adjust", { p_token: token, p_to: toId, p_amount: a, p_sign: sign, p_now: Date.now() });
     adminAmount.value = "";
     if(adminSelId === toId) adminLoadStats(toId);
     refreshAdmin();
@@ -821,7 +827,7 @@ async function adminMakeAgent(isAgent){
   if(!confirm((isAgent?"¿Hacer agente a":"¿Quitar el rol de agente a")+" este usuario?")) return;
   try{
     await sbRpc("admin_agent_set", {
-      p_admin: current.id, p_user_id: adminSelId, p_is_agent: isAgent,
+      p_token: token, p_user_id: adminSelId, p_is_agent: isAgent,
       p_commission: Number.isFinite(comm) ? comm : 10, p_code: code
     });
     alert(isAgent ? "Usuario marcado como agente." : "Se quitó el rol de agente.");
@@ -838,7 +844,7 @@ async function adminAgentAdd(){
   if(!agentsSel) return alert("Toca primero un agente de la lista.");
   if(!adminSelId) return alert("Selecciona primero un usuario en la lista de arriba.");
   try{
-    await sbRpc("admin_agent_assign", { p_admin: current.id, p_player: adminSelId, p_agent: agentsSel });
+    await sbRpc("admin_agent_assign", { p_token: token, p_player: adminSelId, p_agent: agentsSel });
     alert("Usuario añadido al agente.");
     refreshAdmin();
   }catch(e){ alert(e.message||"Error al añadir el usuario."); }
@@ -847,7 +853,7 @@ async function adminAgentAdd(){
 async function adminAgentRemove(playerId){
   if(!confirm("¿Quitar este usuario del agente?")) return;
   try{
-    await sbRpc("admin_agent_assign", { p_admin: current.id, p_player: playerId, p_agent: null });
+    await sbRpc("admin_agent_assign", { p_token: token, p_player: playerId, p_agent: null });
     alert("Usuario quitado del agente.");
     refreshAdmin();
   }catch(e){ alert(e.message||"Error al quitar el usuario."); }
@@ -891,8 +897,8 @@ const AG = (function(){
     if(!current || !current.agent) return;
     try{
       const [sum, pl] = await Promise.all([
-        sbRpc("agent_summary", { p_agent: current.id }),
-        sbRpc("agent_players", { p_agent: current.id })
+        sbRpc("agent_summary", { p_token: token }),
+        sbRpc("agent_players", { p_token: token })
       ]);
       players = Array.isArray(pl) ? pl : [];
       renderSummary(sum || {});
@@ -903,7 +909,7 @@ const AG = (function(){
     }
   }
   async function refreshBal(){
-    try{ const u = await sbRpc("get_user", { p_id: current.id }); if(u && u.id){ current.balance = u.balance; updateBalanceUI(); } }catch(e){}
+    try{ const u = await sbRpc("get_user", { p_token: token }); if(u && u.id){ current.balance = u.balance; updateBalanceUI(); } }catch(e){}
   }
 
   function renderSummary(s){
@@ -930,7 +936,7 @@ const AG = (function(){
     const box = $("agentDetail"); if(!box) return;
     box.innerHTML = '<div class="muted" style="padding:10px">Cargando…</div>';
     try{
-      const s = await sbRpc("agent_player_stats", { p_agent: current.id, p_player: id });
+      const s = await sbRpc("agent_player_stats", { p_token: token, p_player: id });
       renderDetail(s);
     }catch(e){ box.innerHTML = '<div class="bad" style="padding:10px">'+escapeHtml(e.message||"Error al cargar.")+'</div>'; }
   }
@@ -955,7 +961,7 @@ const AG = (function(){
 
   async function pay(){
     try{
-      const r = await sbRpc("agent_pay_commission", { p_agent: current.id, p_now: Date.now() });
+      const r = await sbRpc("agent_pay_commission", { p_token: token, p_now: Date.now() });
       alert((r && r.paid>0) ? ("Cobraste "+r.paid+" fichas de comisión.") : "No tienes comisión pendiente.");
       await refresh();
     }catch(e){ alert(e.message||"No se pudo cobrar la comisión."); }
@@ -980,7 +986,7 @@ const AG = (function(){
   async function statsRefresh(){
     if(!current || !current.agent) return;
     try{
-      const r = await sbRpc("agent_commission_report", { p_agent: current.id });
+      const r = await sbRpc("agent_commission_report", { p_token: token });
       renderStats(r || {});
     }catch(e){
       const b = $("agentStatsSummary"); if(b) b.innerHTML = '<b class="bad">'+escapeHtml(e.message||"Error al cargar.")+'</b>';
@@ -1104,7 +1110,7 @@ function makeRoulette(cfg){
     if(data.finished || Date.now()>=data.end) return alert("La ronda está terminando. Espera la siguiente.");
     if(data.participants.some(p=>p.id===current.id)) return alert("Ya estás participando en esta ronda.");
     if(current.balance<cfg.cost) return alert(`No tienes suficientes fichas. Necesitas ${cfg.cost} fichas.`);
-    return sbRpc("join_round", { p_round: cfg.doc, p_user_id: current.id, p_cost: cfg.cost, p_label: cfg.label, p_now: Date.now() })
+    return sbRpc("join_round", { p_round: cfg.doc, p_token: token, p_cost: cfg.cost, p_label: cfg.label, p_now: Date.now() })
       .then(()=>{
         msg("🎡 ¡Ya estás dentro de la ruleta!");
         if(isOpen()) updateTimer();
@@ -1277,7 +1283,7 @@ const SC = (function(){
     if(current.balance < SCRATCH_COST) return alert(`No tienes suficientes fichas. Necesitas ${SCRATCH_COST} fichas.`);
     let res;
     try{
-      res = await sbRpc("scratch_buy", { p_user_id: current.id, p_price: SCRATCH_COST, p_now: Date.now() });
+      res = await sbRpc("scratch_buy", { p_token: token, p_price: SCRATCH_COST, p_now: Date.now() });
     }catch(e){ return alert(e.message||"No se pudo comprar el cartón."); }
 
     const prize = Number(res && res.prize) || 0;
@@ -1377,7 +1383,7 @@ const BETS = (function(){
     if(busy || !current) return;
     busy = true;
     try{
-      const r = await sbRpc("bets_list", { p_user_id: current.id });
+      const r = await sbRpc("bets_list", { p_token: token });
       data = r || {};
       if(typeof data.balance === "number"){ current.balance = data.balance; updateBalanceUI(); }
       render();
@@ -1471,7 +1477,7 @@ const BETS = (function(){
     const btn = $("betPlaceBtn"); if(btn){ btn.disabled = true; btn.textContent = "Apostando…"; }
     const name = sel.name;
     try{
-      const r = await sbRpc("bets_place", { p_user_id: current.id, p_event: sel.id, p_pick: sel.pick, p_stake: stake, p_now: Date.now() });
+      const r = await sbRpc("bets_place", { p_token: token, p_event: sel.id, p_pick: sel.pick, p_stake: stake, p_now: Date.now() });
       data = r || data;
       if(typeof data.balance === "number"){ current.balance = data.balance; updateBalanceUI(); }
       hideBar();
@@ -1487,7 +1493,7 @@ const BETS = (function(){
     const raw = ($("betAdminSports") && $("betAdminSports").value || "").trim();
     const arr = raw ? raw.split(",").map(s=>s.trim()).filter(Boolean) : null;
     try{
-      const r = await sbRpc("bets_admin_setup", { p_admin: current.id, p_key: null, p_sports: arr });
+      const r = await sbRpc("bets_admin_setup", { p_token: token, p_key: null, p_sports: arr });
       adminShow(r);
       alert("Deportes guardados. Ahora pulsa «Actualizar cuotas».");
     }catch(e){ alert(e.message || "Error al guardar."); }
@@ -1501,10 +1507,10 @@ const BETS = (function(){
     if(!current || !current.admin) return;
     const box = $("betAdminInfo"); if(box) box.innerHTML = "Actualizando cuotas… (puede tardar unos segundos)";
     try{
-      const r = await sbRpc("bets_refresh_all", {});
+      const r = await sbRpc("bets_admin_refresh", { p_token: token });
       const d = (r && r.detail) || {};
       const txt = Object.keys(d).map(k=>`${k}: ${d[k]}`).join(" · ");
-      const cfg = await sbRpc("bets_admin_setup", { p_admin: current.id, p_key: null, p_sports: null });
+      const cfg = await sbRpc("bets_admin_setup", { p_token: token, p_key: null, p_sports: null });
       if(box) box.innerHTML = `Cuotas actualizadas (${(r&&r.total)||0} partidos).<br>${escapeHtml(txt)}<br>Deportes activos: <b>${escapeHtml((cfg.sports||[]).join(", "))}</b>`;
       load(true);
     }catch(e){ alert(e.message || "Error al actualizar cuotas."); }
@@ -1513,7 +1519,7 @@ const BETS = (function(){
     if(!current || !current.admin) return;
     const box = $("betAdminInfo"); if(box) box.innerHTML = "Revisando resultados…";
     try{
-      const r = await sbRpc("bets_settle_all", {});
+      const r = await sbRpc("bets_admin_settle", { p_token: token });
       const d = (r && r.detail) || {};
       const txt = Object.keys(d).map(k=>`${k}: ${d[k]}`).join(" · ");
       if(box) box.innerHTML = `Resultados revisados. Apuestas pagadas: <b>${(r&&r.total)||0}</b><br>${escapeHtml(txt)}`;
@@ -1572,11 +1578,12 @@ R1.subscribe();
 R2.subscribe();
 
 (async function restoreSession(){
-  const sid = localStorage.getItem("casino_uid");
-  if(sid){
+  const st = localStorage.getItem("casino_token");
+  if(st){
     try{
-      const u = await sbRpc("get_user", { p_id: sid });
-      if(u && u.id){ current = u; await enter(); }
+      const u = await sbRpc("get_user", { p_token: st });
+      if(u && u.id){ token = st; current = u; await enter(); }
+      else localStorage.removeItem("casino_token");
     }catch(e){ console.warn("Sesión:", e.message); }
   }
   setTimeout(diagnosticoSupabase, 600);
