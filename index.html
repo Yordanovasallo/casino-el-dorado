@@ -902,25 +902,9 @@ const AG = (function(){
           <div><div class="muted">Neto en juegos</div><div class="balance ${s.gameNet>=0?"ok":"bad"}">${money(s.gameNet)}</div></div>
           <div><div class="muted">Neto total</div><div class="balance ${s.net>=0?"ok":"bad"}">${money(s.net)}</div></div>
         </div>
-        <div style="margin-top:12px">
-          <input id="agentAmount" type="number" min="1" placeholder="Cantidad de fichas">
-          <div class="grid"><button class="primary" onclick="AG.adjust(1)">＋ Dar fichas</button><button class="danger" onclick="AG.adjust(-1)">− Quitar fichas</button></div>
-        </div>
       </div>
       <h3>Últimos movimientos</h3>
       <div style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody>${last}</tbody></table></div>`;
-  }
-
-  async function adjust(sign){
-    if(!sel) return;
-    const el = $("agentAmount");
-    const a = Math.floor(Number(el ? el.value : NaN));
-    if(!Number.isFinite(a) || a<=0) return alert("Escribe una cantidad válida (número mayor que 0).");
-    try{
-      await sbRpc("agent_adjust", { p_agent: current.id, p_player: sel, p_amount: a, p_sign: sign, p_now: Date.now() });
-      alert((sign>0?"Se sumaron ":"Se quitaron ")+a+" fichas.");
-      await refresh(); await select(sel);
-    }catch(e){ alert(e.message||"Error al ajustar fichas."); }
   }
 
   async function pay(){
@@ -983,7 +967,7 @@ const AG = (function(){
   }
   function pickDay(d){ selDay = d; renderDays(); renderByPlayer(); }
 
-  return {open, close, refresh, select, adjust, pay, stats, closeStats, pickDay};
+  return {open, close, refresh, select, pay, stats, closeStats, pickDay};
 })();
 
 /* ================================================================
