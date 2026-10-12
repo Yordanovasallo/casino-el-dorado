@@ -528,6 +528,7 @@ const AG = (function(){
       <span class="adm-unum">#${p.num}</span>
       <span class="adm-uname">${escapeHtml(p.name)}</span>
       <span class="adm-ubal">${p.balance} 🪙</span>
+      <span class="adm-ubal" style="color:#7ee2a8" title="Comisión ganada hoy">+${p.today||0} hoy</span>
     </button>`).join("") || '<div class="muted" style="padding:8px">Aún no tienes jugadores afiliados. Comparte tu código al registrarse.</div>';
   }
 
