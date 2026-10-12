@@ -75,7 +75,7 @@ as $$
 declare t text; now_ms bigint;
 begin
   now_ms := (extract(epoch from now()) * 1000)::bigint;
-  delete from public.sessions where user_id = p_user_id;
+  delete from public.sessions where expires < now_ms;
   t := encode(extensions.gen_random_bytes(24), 'hex');
   insert into public.sessions(token, user_id, created, expires)
   values (t, p_user_id, now_ms, now_ms + 2592000000);
