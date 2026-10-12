@@ -299,6 +299,7 @@ async function refreshAdmin(){
     agentsCache = Array.isArray(oa) ? oa : [];
     dailyCache = Array.isArray(od) ? od : [];
     renderAdmin();
+    try{ C3.adminInfo(); }catch(e){}
   }catch(e){}
 }
 
@@ -1183,6 +1184,150 @@ const BETS = (function(){
   function cancel(){ hideBar(); renderEvents(); }
 
   return {open, close, load, choose, place, cancel, adminSave, adminRefresh, adminSettle, adminPanelShown};
+})();
+
+
+/* ---------------- Cash 3 ---------------- */
+const C3 = (function(){
+  const $ = n => document.getElementById(n);
+  let data = null, timer = null, busy = false, mode = "three";
+
+  const msg = (t, cls)=>{ const m=$("c3Msg"); if(!m) return; m.textContent=t; if(cls) m.className="notice "+cls; else m.className="notice"; };
+  const modeName = m => m === "three" ? "A las 3" : "Últimos 2";
+
+  function open(){
+    $("c3Game").classList.remove("hidden");
+    $("mainGames").classList.add("hidden");
+    msg("⏳ Cargando…");
+    load();
+    if(timer) clearInterval(timer);
+    timer = setInterval(()=>{ if($("c3Game") && !$("c3Game").classList.contains("hidden")) load(true); }, 5000);
+    window.scrollTo(0,0);
+  }
+  function close(){
+    $("c3Game").classList.add("hidden");
+    $("mainGames").classList.remove("hidden");
+    if(timer){ clearInterval(timer); timer = null; }
+  }
+
+  function setMode(m){
+    mode = m === "two" ? "two" : "three";
+    const three = $("c3ModeThree"), two = $("c3ModeTwo");
+    if(three) three.classList.toggle("on", mode==="three");
+    if(two) two.classList.toggle("on", mode==="two");
+    const num = $("c3Num");
+    if(num){ num.maxLength = mode==="three" ? 3 : 2; num.value=""; num.placeholder = mode==="three" ? "000" : "00"; }
+    const hint = $("c3Hint");
+    if(hint) hint.textContent = mode==="three"
+      ? "Escribe 3 dígitos (ej: 407). Ganarás si sale ese número exacto."
+      : "Escribe 2 dígitos (ej: 07). Ganarás si son los últimos 2 del número que salga.";
+  }
+  function clean(){
+    const num = $("c3Num"); if(!num) return;
+    num.value = num.value.replace(/[^0-9]/g, "").slice(0, mode==="three" ? 3 : 2);
+  }
+
+  async function load(silent){
+    if(busy || !current) return;
+    busy = true;
+    try{
+      const r = await sbRpc("cash3_state", { p_token: token });
+      data = r || {};
+      if(typeof data.balance === "number"){ current.balance = data.balance; updateBalanceUI(); }
+      render();
+      if(!silent) msg("Elige tu número y apuesta. Tú decides antes si juegas a las 3 o a los últimos 2.");
+    }catch(e){ if(!silent) msg("No se pudo cargar: " + msgDeError(e)); }
+    finally{ busy = false; }
+  }
+
+  function render(){
+    const bal = $("c3Balance");
+    if(bal) bal.textContent = (data && typeof data.balance==="number") ? data.balance : (current ? current.balance : 0);
+    const p3 = $("c3PayThree"), p2 = $("c3PayTwo");
+    if(p3 && data && data.mult_three) p3.textContent = "paga " + data.mult_three + " por ficha";
+    if(p2 && data && data.mult_two) p2.textContent = "paga " + data.mult_two + " por ficha";
+    renderMine();
+    renderHist();
+    renderRecent();
+  }
+
+  function betRow(b, withWinner){
+    const st = b.status === "won" ? "won" : b.status === "lost" ? "lost" : "open";
+    const label = st === "won" ? "GANÓ" : st === "lost" ? "PERDIÓ" : "EN JUEGO";
+    const num = (b.num||"").padStart(b.mode==="three"?3:2, "0");
+    const right = st === "won" ? `+${b.payout} 🪙` : st === "lost" ? `−${b.stake} 🪙` : `${b.stake} 🪙 apostados`;
+    const win = withWinner && b.winner ? `<span class="muted"> · salió ${escapeHtml(b.winner)}</span>` : "";
+    return `<div class="c3-mrow"><div>🎯 <b>${escapeHtml(num)}</b> · <span class="muted">${modeName(b.mode)}</span><span class="c3-badge ${st}">${label}</span>${win}</div><div style="white-space:nowrap;color:${st==='won'?'#7dffb0':st==='lost'?'#ff9aa8':'#cdd6ea'}">${right}</div></div>`;
+  }
+
+  function renderMine(){
+    const box = $("c3Mine"); if(!box) return;
+    const mine = (data && data.mine) || [];
+    box.innerHTML = mine.length ? mine.map(b=>betRow(b,false)).join("")
+      : '<div class="muted" style="padding:8px">Aún no has apostado en esta ronda. El administrador está por publicar el resultado.</div>';
+  }
+  function renderRecent(){
+    const box = $("c3Recent"); if(!box) return;
+    const rec = (data && data.recent) || [];
+    box.innerHTML = rec.length ? rec.map(b=>betRow(b,true)).join("")
+      : '<div class="muted" style="padding:8px">Sin jugadas todavía.</div>';
+  }
+  function renderHist(){
+    const box = $("c3Hist"); if(!box) return;
+    const hist = (data && data.history) || [];
+    box.innerHTML = hist.length ? hist.map(h=>`<div class="c3-ball">${escapeHtml(h.winner)}</div>`).join("")
+      : '<div class="muted" style="padding:8px">Todavía no hay resultados. El primero lo publica el administrador.</div>';
+  }
+
+  async function place(){
+    if(!current) return;
+    const num = ($("c3Num") && $("c3Num").value || "").trim();
+    const stake = parseInt($("c3Stake") && $("c3Stake").value, 10);
+    if(!num) return msg("Escribe tu número.");
+    if(!stake || stake <= 0) return msg("Escribe cuántas fichas quieres apostar.");
+    msg("⏳ Enviando apuesta…");
+    try{
+      const r = await sbRpc("cash3_place", { p_token: token, p_num: num, p_mode: mode, p_stake: stake, p_now: Date.now() });
+      if(r && typeof r.balance === "number"){ current.balance = r.balance; updateBalanceUI(); }
+      const num2 = $("c3Num"); if(num2) num2.value = "";
+      msg(`✅ Apuesta a ${mode==="three"?"las 3":"los últimos 2"} por ${escapeHtml((r&&r.num)||num)} · ${stake} fichas.${mode==="three"?(" Si sale ese número ganas "+(stake*((data&&data.mult_three)||400))):(" Si salen esos 2 últimos ganas "+(stake*((data&&data.mult_two)||70)))} fichas.`, "win");
+      load(true);
+    }catch(e){ msg("No se pudo apostar: " + msgDeError(e), "danger"); }
+  }
+
+  async function adminInfo(){
+    if(!current || !current.admin) return;
+    const info = $("c3AdminInfo"), list = $("c3AdminBets");
+    if(info) info.textContent = "Cargando…";
+    try{
+      const r = await sbRpc("cash3_admin_info", { p_token: token }) || {};
+      const by = r.by_num || [];
+      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas`;
+      if(list){
+        list.innerHTML = by.length ? by.map(b=>`<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.mode==="three"?"A las 3":"Últimos 2"}</span><span class="adm-ubal">${b.count} jug. · ${b.stake} 🪙</span></div>`).join("")
+          : '<div class="muted" style="padding:8px">Sin apuestas abiertas todavía.</div>';
+      }
+    }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
+  }
+
+  async function adminSettle(){
+    if(!current || !current.admin) return;
+    const w = ($("c3Winner") && $("c3Winner").value || "").replace(/[^0-9]/g,"");
+    if(!w) return alert("Escribe el número ganador (3 dígitos).");
+    if(!confirm("¿Publicar el número ganador " + w.padStart(3,"0") + " y pagar las apuestas abiertas?")) return;
+    const info = $("c3AdminInfo"); if(info) info.textContent = "Publicando resultado…";
+    try{
+      const r = await sbRpc("cash3_admin_settle", { p_token: token, p_winner: w, p_now: Date.now() });
+      if($("c3Winner")) $("c3Winner").value = "";
+      if(info) info.innerHTML = `✅ Resultado <b>${escapeHtml(r.winner)}</b> · ${r.won} ganadoras / ${r.lost} perdidas · pagado <b>${r.total_paid}</b> 🪙 (casa ${r.net})`;
+      load(true);
+      adminInfo();
+    }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
+  }
+
+  setMode("three");
+
+  return {open, close, load, setMode, clean, place, adminInfo, adminSettle};
 })();
 
 
