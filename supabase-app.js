@@ -275,7 +275,7 @@ function startAdminWatch(){
 }
 function stopAdminWatch(){ if(adminTimer){ clearInterval(adminTimer); adminTimer=null; } }
 
-let adminSelId = null, adminSelStats = null;
+let adminSelId = null, adminSelStats = null, agentsSel = null;
 
 async function refreshAdmin(){
   if(!current || !current.admin) return;
@@ -336,21 +336,35 @@ function renderDaily(){
 
 function renderAgents(){
   const list = document.getElementById("agentAdminList");
-  const pick = document.getElementById("agentPick");
-  if(pick){
-    const keep = pick.value;
-    pick.innerHTML = '<option value="">— Sin agente —</option>' + agentsCache.map(a=>
-      `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.code)}) · ${a.players} jug.</option>`).join("");
-    if([...pick.options].some(o=>o.value===keep)) pick.value = keep;
-  }
   if(list){
-    list.innerHTML = agentsCache.map(a=>`<div class="adm-urow" style="cursor:default">
+    list.innerHTML = agentsCache.map(a=>`<button class="adm-urow${a.id===agentsSel?" on":""}" onclick="adminAgentSelect('${escapeHtml(a.id)}')" data-ag="${escapeHtml(a.id)}">
       <span class="adm-unum">#${a.num}</span>
       <span class="adm-uname">${escapeHtml(a.name)}
-        <span class="muted" style="font-size:12px">· ${escapeHtml(a.code)} · ${a.commission}% · ${a.players} jug. · ganancia ${a.house_profit} 🪙</span></span>
-      <span class="adm-ubal">${a.players_balance} 🪙</span>
-    </div>`).join("") || '<div class="muted" style="padding:8px">Sin agentes todavía.</div>';
+        <span class="muted" style="font-size:12px">· ${escapeHtml(a.code)} · ${a.commission}%</span></span>
+      <span class="adm-ubal">${a.players_count} jug. · ${a.players_balance} 🪙</span>
+    </button>`).join("") || '<div class="muted" style="padding:8px">Sin agentes todavía. Selecciona un usuario arriba y usa "Hacer agente".</div>';
   }
+  renderAgentDetail();
+}
+
+function renderAgentDetail(){
+  const box = document.getElementById("agentAdminDetail"); if(!box) return;
+  if(!agentsSel){ box.innerHTML = '<div class="muted" style="padding:8px">Toca un agente para ver qué usuarios tiene bajo su mando.</div>'; return; }
+  const a = agentsCache.find(x=>x.id===agentsSel);
+  if(!a){ box.innerHTML = '<div class="muted" style="padding:8px">Ese agente ya no existe.</div>'; return; }
+  const pls = a.players || [];
+  box.innerHTML = `
+    <strong>${escapeHtml(a.name)}</strong> <span class="adm-unum">#${a.num}</span>
+    <span class="muted" style="font-size:12px">· ${escapeHtml(a.code)} · ${a.commission}%</span>
+    <div style="margin-top:8px">👥 Usuarios bajo su mando:</div>
+    <div class="adm-list" style="margin-top:6px">
+      ${pls.map(p=>`<div class="adm-urow" style="cursor:default">
+        <span class="adm-unum">#${p.num}</span>
+        <span class="adm-uname">${escapeHtml(p.name)}</span>
+        <span class="adm-ubal">${p.balance} 🪙</span>
+        <button class="ghost" style="width:auto;padding:4px 8px" onclick="adminAgentRemove('${escapeHtml(p.id)}')">− Quitar</button>
+      </div>`).join("") || '<div class="muted" style="padding:6px">Sin usuarios todavía.</div>'}
+    </div>`;
 }
 
 function updateSelRowHighlight(){
@@ -465,15 +479,28 @@ async function adminMakeAgent(isAgent){
   }catch(e){ alert(e.message||"Error al actualizar el agente."); }
 }
 
-async function adminAssignAgent(){
-  if(!adminSelId) return alert("Toca primero un usuario de la lista de arriba.");
-  const pick = document.getElementById("agentPick");
-  const ag = pick ? pick.value : "";
+function adminAgentSelect(id){
+  agentsSel = (agentsSel === id) ? null : id;
+  renderAgents();
+}
+
+async function adminAgentAdd(){
+  if(!agentsSel) return alert("Toca primero un agente de la lista.");
+  if(!adminSelId) return alert("Selecciona primero un usuario en la lista de arriba.");
   try{
-    await sbRpc("admin_agent_assign", { p_admin: current.id, p_player: adminSelId, p_agent: ag || null });
-    alert(ag ? "Jugador asignado al agente." : "Jugador dejado sin agente.");
+    await sbRpc("admin_agent_assign", { p_admin: current.id, p_player: adminSelId, p_agent: agentsSel });
+    alert("Usuario añadido al agente.");
     refreshAdmin();
-  }catch(e){ alert(e.message||"Error al asignar."); }
+  }catch(e){ alert(e.message||"Error al añadir el usuario."); }
+}
+
+async function adminAgentRemove(playerId){
+  if(!confirm("¿Quitar este usuario del agente?")) return;
+  try{
+    await sbRpc("admin_agent_assign", { p_admin: current.id, p_player: playerId, p_agent: null });
+    alert("Usuario quitado del agente.");
+    refreshAdmin();
+  }catch(e){ alert(e.message||"Error al quitar el usuario."); }
 }
 
 function ledgerDataHtml(){
