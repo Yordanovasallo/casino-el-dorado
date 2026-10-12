@@ -43,7 +43,7 @@ let current = null;
 let pendingReveal = null;
 let userTimer = null;
 let adminTimer = null;
-let usersCache = [], ledgerCache = [], statsCache = null;
+let usersCache = [], ledgerCache = [], statsCache = null, agentsCache = [];
 
 /* ---------------- utilidades ---------------- */
 function normName(n){ return String(n||"").trim().toLowerCase().replace(/\//g,"_"); }
@@ -136,7 +136,7 @@ function startUserPoll(){
     if(!current) return;
     try{
       const u = await sbRpc("get_user", { p_id: current.id });
-      if(u && u.id){ current = u; updateBalanceUI(); }
+      if(u && u.id){ current = u; updateBalanceUI(); updateAgentUI(); }
     }catch(e){}
   }, 2000);
 }
@@ -151,6 +151,8 @@ async function register(){
   if(!docId || docId==="." || docId==="..") return showMsg("Nombre de usuario no válido.");
   if(docId.length>24) return showMsg("El usuario debe tener máximo 24 caracteres.");
   const isAdmin = docId==="admin";
+  const agEl = document.getElementById("rAgent");
+  const agCode = (agEl ? agEl.value : "").trim();
   try{
     await sbRpc("register_user", {
       p_id: docId,
@@ -161,10 +163,15 @@ async function register(){
       p_created: Date.now()
     });
   }catch(e){ return showMsg(msgDeError(e)); }
+  let refErr = null;
+  if(agCode && !isAdmin){
+    try{ await sbRpc("apply_referral", { p_user_id: docId, p_code: agCode }); }
+    catch(e){ refErr = e.message || "código de agente no válido"; }
+  }
   localStorage.setItem("casino_uid", docId);
   current = { id:docId, name:isAdmin?"admin":raw, balance:isAdmin?0:SALDO_INICIAL, avatar:"", admin:isAdmin };
   await enter();
-  showMsg("Cuenta creada correctamente.");
+  showMsg(refErr ? ("Cuenta creada. Aviso: "+refErr) : "Cuenta creada correctamente.");
 }
 
 async function login(){
@@ -199,6 +206,7 @@ async function enter(){
   updateBalanceUI();
   startUserPoll();
   R1.refresh(); R2.refresh();
+  updateAgentUI();
 }
 
 function logout(){
@@ -272,14 +280,16 @@ let adminSelId = null, adminSelStats = null;
 async function refreshAdmin(){
   if(!current || !current.admin) return;
   try{
-    const [ou, ol, os] = await Promise.all([
+    const [ou, ol, os, oa] = await Promise.all([
       sbRead("v_users?select=id,num,name,balance,admin"),
       sbRead("ledger?select=*&order=ts.desc&limit=150"),
-      sbRead("scratch_stats?select=*&limit=1")
+      sbRead("scratch_stats?select=*&limit=1"),
+      sbRpc("admin_agent_list", { p_admin: current.id })
     ]);
     usersCache = Array.isArray(ou) ? ou : [];
     ledgerCache = Array.isArray(ol) ? ol : [];
     statsCache = (Array.isArray(os) && os[0]) || null;
+    agentsCache = Array.isArray(oa) ? oa : [];
     renderAdmin();
   }catch(e){}
 }
@@ -303,8 +313,28 @@ function renderAdmin(){
     </button>`).join("") || '<div class="muted" style="padding:8px">Sin usuarios.</div>';
   }
   renderScratchStats();
+  renderAgents();
   document.getElementById("ledger").innerHTML = ledgerDataHtml();
   if(adminSelId) updateSelRowHighlight();
+}
+
+function renderAgents(){
+  const list = document.getElementById("agentAdminList");
+  const pick = document.getElementById("agentPick");
+  if(pick){
+    const keep = pick.value;
+    pick.innerHTML = '<option value="">— Sin agente —</option>' + agentsCache.map(a=>
+      `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.code)}) · ${a.players} jug.</option>`).join("");
+    if([...pick.options].some(o=>o.value===keep)) pick.value = keep;
+  }
+  if(list){
+    list.innerHTML = agentsCache.map(a=>`<div class="adm-urow" style="cursor:default">
+      <span class="adm-unum">#${a.num}</span>
+      <span class="adm-uname">${escapeHtml(a.name)}
+        <span class="muted" style="font-size:12px">· ${escapeHtml(a.code)} · ${a.commission}% · ${a.players} jug. · ganancia ${a.house_profit} 🪙</span></span>
+      <span class="adm-ubal">${a.players_balance} 🪙</span>
+    </div>`).join("") || '<div class="muted" style="padding:8px">Sin agentes todavía.</div>';
+  }
 }
 
 function updateSelRowHighlight(){
@@ -402,10 +432,156 @@ async function adminAdjust(sign){
   }catch(e){ alert(e.message||"Error al ajustar fichas."); }
 }
 
+async function adminMakeAgent(isAgent){
+  if(!adminSelId) return alert("Toca primero un usuario de la lista de arriba.");
+  const codeEl = document.getElementById("agentCodeInput");
+  const commEl = document.getElementById("agentCommissionInput");
+  const code = (codeEl ? codeEl.value : "").trim();
+  const comm = Math.floor(Number(commEl ? commEl.value : 10));
+  if(!confirm((isAgent?"¿Hacer agente a":"¿Quitar el rol de agente a")+" este usuario?")) return;
+  try{
+    await sbRpc("admin_agent_set", {
+      p_admin: current.id, p_user_id: adminSelId, p_is_agent: isAgent,
+      p_commission: Number.isFinite(comm) ? comm : 10, p_code: code
+    });
+    alert(isAgent ? "Usuario marcado como agente." : "Se quitó el rol de agente.");
+    refreshAdmin();
+  }catch(e){ alert(e.message||"Error al actualizar el agente."); }
+}
+
+async function adminAssignAgent(){
+  if(!adminSelId) return alert("Toca primero un usuario de la lista de arriba.");
+  const pick = document.getElementById("agentPick");
+  const ag = pick ? pick.value : "";
+  try{
+    await sbRpc("admin_agent_assign", { p_admin: current.id, p_player: adminSelId, p_agent: ag || null });
+    alert(ag ? "Jugador asignado al agente." : "Jugador dejado sin agente.");
+    refreshAdmin();
+  }catch(e){ alert(e.message||"Error al asignar."); }
+}
+
 function ledgerDataHtml(){
   return ledgerCache.map(x=>`<tr><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.uname)}</td><td>${escapeHtml(x.type)}</td><td class="${x.amount>=0?"ok":"bad"}">${x.amount>0?"+":""}${x.amount}</td><td>${escapeHtml(x.detail)}</td></tr>`).join("")
     || `<tr><td colspan="5" class="muted">Sin movimientos.</td></tr>`;
 }
+
+/* ================================================================
+   AGENTES / AFILIADOS (panel del agente + gestión del admin)
+   ================================================================ */
+function updateAgentUI(){
+  const card = document.getElementById("agentCard");
+  if(card){ if(current && current.agent) card.classList.remove("hidden"); else card.classList.add("hidden"); }
+}
+
+const AG = (function(){
+  const $ = n => document.getElementById(n);
+  let players = [], sel = null;
+
+  function open(){
+    if(!current || !current.agent) return alert("No eres agente.");
+    $("agentPanel").classList.remove("hidden");
+    $("mainGames").classList.add("hidden");
+    sel = null;
+    $("agentDetail").innerHTML = '<div class="muted" style="padding:10px">Selecciona un jugador de la lista.</div>';
+    refresh();
+    window.scrollTo(0,0);
+  }
+  function close(){
+    $("agentPanel").classList.add("hidden");
+    $("mainGames").classList.remove("hidden");
+  }
+
+  async function refresh(){
+    if(!current || !current.agent) return;
+    try{
+      const [sum, pl] = await Promise.all([
+        sbRpc("agent_summary", { p_agent: current.id }),
+        sbRpc("agent_players", { p_agent: current.id })
+      ]);
+      players = Array.isArray(pl) ? pl : [];
+      renderSummary(sum || {});
+      renderPlayers();
+      refreshBal();
+    }catch(e){
+      const b = $("agentSummary"); if(b) b.innerHTML = '<b class="bad">'+escapeHtml(e.message||"Error al cargar.")+'</b>';
+    }
+  }
+  async function refreshBal(){
+    try{ const u = await sbRpc("get_user", { p_id: current.id }); if(u && u.id){ current.balance = u.balance; updateBalanceUI(); } }catch(e){}
+  }
+
+  function renderSummary(s){
+    const box = $("agentSummary"); if(!box) return;
+    box.innerHTML = `🆔 Código de agente: <b>${escapeHtml(s.code||"—")}</b> · Comisión: <b>${s.commission||0}%</b> ·
+      Jugadores: <b>${s.players||0}</b> · Saldo gestionado: <b>${s.managed_balance||0} 🪙</b><br>
+      Ganancia que generan a la casa: <b>${s.house_profit||0} 🪙</b> · Comisión acumulada: <b>${s.earned||0}</b> ·
+      Ya cobrada: <b>${s.paid||0}</b> · <span class="ok">Por cobrar: ${s.pending||0} 🪙</span>
+      <div style="margin-top:10px"><button class="primary" onclick="AG.pay()">💰 Cobrar comisión</button></div>`;
+  }
+
+  function renderPlayers(){
+    const box = $("agentPlayers"); if(!box) return;
+    box.innerHTML = players.map(p=>`<button class="adm-urow${p.id===sel?" on":""}" onclick="AG.select('${escapeHtml(p.id)}')">
+      <span class="adm-unum">#${p.num}</span>
+      <span class="adm-uname">${escapeHtml(p.name)}</span>
+      <span class="adm-ubal">${p.balance} 🪙</span>
+    </button>`).join("") || '<div class="muted" style="padding:8px">Aún no tienes jugadores afiliados. Comparte tu código al registrarse.</div>';
+  }
+
+  async function select(id){
+    sel = id; renderPlayers();
+    const box = $("agentDetail"); if(!box) return;
+    box.innerHTML = '<div class="muted" style="padding:10px">Cargando…</div>';
+    try{
+      const s = await sbRpc("agent_player_stats", { p_agent: current.id, p_player: id });
+      renderDetail(s);
+    }catch(e){ box.innerHTML = '<div class="bad" style="padding:10px">'+escapeHtml(e.message||"Error al cargar.")+'</div>'; }
+  }
+
+  function renderDetail(s){
+    const box = $("agentDetail"); if(!box || !s) return;
+    const last = (s.last||[]).slice(0,20).map(x=>`<tr><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.type)}</td><td class="${x.amount>=0?"ok":"bad"}">${x.amount>0?"+":""}${x.amount}</td><td>${escapeHtml(x.detail||"")}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">Sin movimientos.</td></tr>';
+    box.innerHTML = `
+      <div class="card" style="background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div><strong style="font-size:18px">${escapeHtml(s.name)}</strong> <span class="adm-unum">#${s.num}</span></div>
+          <div style="text-align:right"><div class="muted" style="font-size:12px">Saldo actual</div><div class="balance" style="font-size:22px">${s.balance} 🪙</div></div>
+        </div>
+        <div class="grid" style="margin-top:10px">
+          <div><div class="muted">Neto en juegos</div><div class="balance ${s.gameNet>=0?"ok":"bad"}">${money(s.gameNet)}</div></div>
+          <div><div class="muted">Neto total</div><div class="balance ${s.net>=0?"ok":"bad"}">${money(s.net)}</div></div>
+        </div>
+        <div style="margin-top:12px">
+          <input id="agentAmount" type="number" min="1" placeholder="Cantidad de fichas">
+          <div class="grid"><button class="primary" onclick="AG.adjust(1)">＋ Dar fichas</button><button class="danger" onclick="AG.adjust(-1)">− Quitar fichas</button></div>
+        </div>
+      </div>
+      <h3>Últimos movimientos</h3>
+      <div style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody>${last}</tbody></table></div>`;
+  }
+
+  async function adjust(sign){
+    if(!sel) return;
+    const el = $("agentAmount");
+    const a = Math.floor(Number(el ? el.value : NaN));
+    if(!Number.isFinite(a) || a<=0) return alert("Escribe una cantidad válida (número mayor que 0).");
+    try{
+      await sbRpc("agent_adjust", { p_agent: current.id, p_player: sel, p_amount: a, p_sign: sign, p_now: Date.now() });
+      alert((sign>0?"Se sumaron ":"Se quitaron ")+a+" fichas.");
+      await refresh(); await select(sel);
+    }catch(e){ alert(e.message||"Error al ajustar fichas."); }
+  }
+
+  async function pay(){
+    try{
+      const r = await sbRpc("agent_pay_commission", { p_agent: current.id, p_now: Date.now() });
+      alert((r && r.paid>0) ? ("Cobraste "+r.paid+" fichas de comisión.") : "No tienes comisión pendiente.");
+      await refresh();
+    }catch(e){ alert(e.message||"No se pudo cobrar la comisión."); }
+  }
+
+  return {open, close, refresh, select, adjust, pay};
+})();
 
 /* ================================================================
    RULETA COMPARTIDA (Supabase + polling)
