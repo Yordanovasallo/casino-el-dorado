@@ -43,7 +43,7 @@ let current = null;
 let pendingReveal = null;
 let userTimer = null;
 let adminTimer = null;
-let usersCache = [], ledgerCache = [], statsCache = null, agentsCache = [];
+let usersCache = [], ledgerCache = [], statsCache = null, agentsCache = [], dailyCache = [];
 
 /* ---------------- utilidades ---------------- */
 function normName(n){ return String(n||"").trim().toLowerCase().replace(/\//g,"_"); }
@@ -280,16 +280,18 @@ let adminSelId = null, adminSelStats = null;
 async function refreshAdmin(){
   if(!current || !current.admin) return;
   try{
-    const [ou, ol, os, oa] = await Promise.all([
+    const [ou, ol, os, oa, od] = await Promise.all([
       sbRead("v_users?select=id,num,name,balance,admin"),
       sbRead("ledger?select=*&order=ts.desc&limit=150"),
       sbRead("scratch_stats?select=*&limit=1"),
-      sbRpc("admin_agent_list", { p_admin: current.id })
+      sbRpc("admin_agent_list", { p_admin: current.id }),
+      sbRpc("admin_daily_profit", { p_admin: current.id })
     ]);
     usersCache = Array.isArray(ou) ? ou : [];
     ledgerCache = Array.isArray(ol) ? ol : [];
     statsCache = (Array.isArray(os) && os[0]) || null;
     agentsCache = Array.isArray(oa) ? oa : [];
+    dailyCache = Array.isArray(od) ? od : [];
     renderAdmin();
   }catch(e){}
 }
@@ -314,8 +316,15 @@ function renderAdmin(){
   }
   renderScratchStats();
   renderAgents();
+  renderDaily();
   document.getElementById("ledger").innerHTML = ledgerDataHtml();
   if(adminSelId) updateSelRowHighlight();
+}
+
+function renderDaily(){
+  const box = document.getElementById("adminDaily"); if(!box) return;
+  box.innerHTML = dailyCache.map(d=>`<tr><td>${escapeHtml(String(d.day))}</td><td>${d.profit} 🪙</td><td class="bad">${d.commission?-d.commission:0} 🪙</td><td class="${d.net>=0?"ok":"bad"}">${d.net} 🪙</td></tr>`).join("")
+    || '<tr><td colspan="4" class="muted">Sin datos todavía.</td></tr>';
 }
 
 function renderAgents(){
