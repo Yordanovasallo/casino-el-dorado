@@ -478,7 +478,7 @@ function updateAgentUI(){
 
 const AG = (function(){
   const $ = n => document.getElementById(n);
-  let players = [], sel = null;
+  let players = [], sel = null, repCache = null, selDay = null;
 
   function open(){
     if(!current || !current.agent) return alert("No eres agente.");
@@ -517,7 +517,7 @@ const AG = (function(){
     const box = $("agentSummary"); if(!box) return;
     box.innerHTML = `🆔 Código de agente: <b>${escapeHtml(s.code||"—")}</b> · Comisión: <b>${s.commission||0}%</b> ·
       Jugadores: <b>${s.players||0}</b> · Saldo gestionado: <b>${s.managed_balance||0} 🪙</b><br>
-      Ganancia que generan a la casa: <b>${s.house_profit||0} 🪙</b> · Comisión acumulada: <b>${s.earned||0}</b> ·
+      Comisión acumulada: <b>${s.earned||0}</b> ·
       Ya cobrada: <b>${s.paid||0}</b> · <span class="ok">Por cobrar: ${s.pending||0} 🪙</span>
       <div style="margin-top:10px"><button class="primary" onclick="AG.pay()">💰 Cobrar comisión</button></div>`;
   }
@@ -609,18 +609,33 @@ const AG = (function(){
     }
   }
   function renderStats(r){
+    repCache = r || {};
+    selDay = null;
     const sum = $("agentStatsSummary");
-    if(sum) sum.innerHTML = `Comisión: <b>${r.rate||0}%</b> · Ganancia que generan a la casa: <b>${r.total_profit||0} 🪙</b> ·
-      Comisión acumulada: <b class="ok">${r.total_commission||0} 🪙</b>`;
-    const days = $("agentStatsDays");
-    if(days) days.innerHTML = (r.by_day||[]).map(d=>`<tr><td>${escapeHtml(String(d.day))}</td><td>${d.players||0}</td><td>${d.profit||0} 🪙</td><td class="ok">${d.commission||0} 🪙</td></tr>`).join("")
-      || '<tr><td colspan="4" class="muted">Todavía no hay comisiones registradas.</td></tr>';
-    const pls = $("agentStatsPlayers");
-    if(pls) pls.innerHTML = (r.by_player||[]).map(p=>`<tr><td>${escapeHtml(String(p.name))} <span class="adm-unum">#${p.num}</span></td><td>${p.profit||0} 🪙</td><td class="ok">${p.commission||0} 🪙</td></tr>`).join("")
-      || '<tr><td colspan="3" class="muted">Sin jugadores con comisión.</td></tr>';
+    if(sum) sum.innerHTML = `Comisión: <b>${r.rate||0}%</b> · Comisión acumulada: <b class="ok">${r.total_commission||0} 🪙</b>`;
+    const arr = repCache.by_day || [];
+    if(arr.length) selDay = String(arr[0].day);
+    renderDays();
+    renderByPlayer();
   }
+  function renderDays(){
+    const box = $("agentStatsDays"); if(!box) return;
+    const arr = (repCache && repCache.by_day) || [];
+    box.innerHTML = arr.map(d=>{ const dd = String(d.day); const on = dd===selDay;
+      return `<tr style="cursor:pointer${on?";background:#2a2340":""}" onclick="AG.pickDay('${dd}')"><td>${escapeHtml(dd)}</td><td>${d.players||0}</td><td class="ok">${d.commission||0} 🪙</td></tr>`;
+    }).join("") || '<tr><td colspan="3" class="muted">Todavía no hay comisiones registradas.</td></tr>';
+  }
+  function renderByPlayer(){
+    const box = $("agentStatsPlayers"); if(!box) return;
+    const t = $("agentStatsPlayersTitle");
+    if(t) t.textContent = selDay ? ("👥 Comisión por jugador — " + selDay) : "👥 Comisión por jugador";
+    const arr = ((repCache && repCache.by_player_day) || []).filter(p=>String(p.day)===selDay);
+    box.innerHTML = arr.map(p=>`<tr><td>${escapeHtml(String(p.name))} <span class="adm-unum">#${p.num}</span></td><td class="ok">${p.commission||0} 🪙</td></tr>`).join("")
+      || '<tr><td colspan="2" class="muted">Sin comisiones ese día.</td></tr>';
+  }
+  function pickDay(d){ selDay = d; renderDays(); renderByPlayer(); }
 
-  return {open, close, refresh, select, adjust, pay, stats, closeStats};
+  return {open, close, refresh, select, adjust, pay, stats, closeStats, pickDay};
 })();
 
 /* ================================================================
