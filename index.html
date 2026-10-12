@@ -197,7 +197,7 @@ body{overflow-x:hidden}}
 
 <section id="app" class="hidden">
 <div class="card"><div class="profile" onclick="toggleProfile()"><img id="avatar" class="avatar" alt="avatar"><div><strong id="welcome"></strong><div class="muted">ID: <span id="uid"></span></div></div><div style="margin-left:auto">⌄</div></div>
-<div id="profileMenu" class="menu hidden"><button class="ghost" onclick="changePassword()">🔐 Cambiar contraseña</button><button class="ghost" onclick="sendFichas()">🪙 Enviar fichas a otro usuario</button><button class="ghost" onclick="uploadAvatar()">🖼️ Poner imagen de la galería</button><button class="danger" onclick="logout()">↪ Cerrar sesión</button></div></div>
+<div id="profileMenu" class="menu hidden"><button class="ghost" onclick="changePassword()">🔐 Cambiar contraseña</button><button class="ghost" onclick="sendFichas()">🪙 Enviar fichas a otro usuario</button><button class="ghost" onclick="uploadAvatar()">🖼️ Poner imagen de la galería</button><button class="ghost hidden" id="agentStatsBtn" onclick="AG.stats()">📊 Estadística de agente</button><button class="danger" onclick="logout()">↪ Cerrar sesión</button></div></div>
 
 <div id="mainGames" class="grid">
 <div class="card"><div class="muted">Saldo disponible</div><div class="balance"><span id="balance">0</span> fichas</div><button class="primary" onclick="recharge()">＋ Recargar saldo</button><div class="muted" style="font-size:12px;margin-top:8px">La recarga se solicita al administrador por WhatsApp.</div></div>
@@ -293,6 +293,16 @@ body{overflow-x:hidden}}
 <div class="muted" style="font-size:12px">Toca un jugador para ver sus datos y ajustar sus fichas.</div>
 <div id="agentPlayers" class="adm-list"></div>
 <div id="agentDetail" class="notice"><div class="muted" style="padding:10px">Selecciona un jugador de la lista.</div></div>
+</section>
+
+<section id="agentStats" class="card hidden">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="ghost" style="width:auto" onclick="AG.closeStats()">← Volver</button><h2 style="margin:0">📊 Estadística de agente</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="AG.stats()">🔄 Actualizar</button></div>
+<div id="agentStatsSummary" class="notice" style="margin:12px 0"></div>
+<h3>📅 Comisión por días</h3>
+<div style="overflow:auto"><table><thead><tr><th>Día</th><th>Jugadores</th><th>Ganancia casa</th><th>Comisión</th></tr></thead><tbody id="agentStatsDays"></tbody></table></div>
+<h3>👥 Comisión por jugador</h3>
+<div style="overflow:auto"><table><thead><tr><th>Jugador</th><th>Ganancia casa</th><th>Comisión</th></tr></thead><tbody id="agentStatsPlayers"></tbody></table></div>
+<div class="muted" style="font-size:12px;margin-top:10px">El registro de comisiones es permanente: queda guardado por día y no se borra.</div>
 </section>
 
 <section id="admin" class="card hidden"><h2>Panel de administración</h2><div class="grid"><div><div class="muted">Usuarios</div><div id="adminUsers" class="balance">0</div></div><div><div class="muted">Fichas en circulación</div><div id="adminBalance" class="balance">0</div></div></div>
@@ -807,7 +817,10 @@ function ledgerDataHtml(){
    ================================================================ */
 function updateAgentUI(){
   const card = document.getElementById("agentCard");
-  if(card){ if(current && current.agent) card.classList.remove("hidden"); else card.classList.add("hidden"); }
+  const btn = document.getElementById("agentStatsBtn");
+  const isAg = !!(current && current.agent);
+  if(card){ card.classList.toggle("hidden", !isAg); }
+  if(btn){ btn.classList.toggle("hidden", !isAg); }
 }
 
 const AG = (function(){
@@ -917,7 +930,44 @@ const AG = (function(){
     }catch(e){ alert(e.message||"No se pudo cobrar la comisión."); }
   }
 
-  return {open, close, refresh, select, adjust, pay};
+  function stats(){
+    if(!current || !current.agent) return alert("No eres agente.");
+    const menu = $("profileMenu"); if(menu) menu.classList.add("hidden");
+    $("agentPanel").classList.add("hidden");
+    $("mainGames").classList.add("hidden");
+    $("agentStats").classList.remove("hidden");
+    $("agentStatsSummary").innerHTML = '<span class="muted">Cargando…</span>';
+    $("agentStatsDays").innerHTML = '';
+    $("agentStatsPlayers").innerHTML = '';
+    window.scrollTo(0,0);
+    return statsRefresh();
+  }
+  function closeStats(){
+    $("agentStats").classList.add("hidden");
+    $("mainGames").classList.remove("hidden");
+  }
+  async function statsRefresh(){
+    if(!current || !current.agent) return;
+    try{
+      const r = await sbRpc("agent_commission_report", { p_agent: current.id });
+      renderStats(r || {});
+    }catch(e){
+      const b = $("agentStatsSummary"); if(b) b.innerHTML = '<b class="bad">'+escapeHtml(e.message||"Error al cargar.")+'</b>';
+    }
+  }
+  function renderStats(r){
+    const sum = $("agentStatsSummary");
+    if(sum) sum.innerHTML = `Comisión: <b>${r.rate||0}%</b> · Ganancia que generan a la casa: <b>${r.total_profit||0} 🪙</b> ·
+      Comisión acumulada: <b class="ok">${r.total_commission||0} 🪙</b>`;
+    const days = $("agentStatsDays");
+    if(days) days.innerHTML = (r.by_day||[]).map(d=>`<tr><td>${escapeHtml(String(d.day))}</td><td>${d.players||0}</td><td>${d.profit||0} 🪙</td><td class="ok">${d.commission||0} 🪙</td></tr>`).join("")
+      || '<tr><td colspan="4" class="muted">Todavía no hay comisiones registradas.</td></tr>';
+    const pls = $("agentStatsPlayers");
+    if(pls) pls.innerHTML = (r.by_player||[]).map(p=>`<tr><td>${escapeHtml(String(p.name))} <span class="adm-unum">#${p.num}</span></td><td>${p.profit||0} 🪙</td><td class="ok">${p.commission||0} 🪙</td></tr>`).join("")
+      || '<tr><td colspan="3" class="muted">Sin jugadores con comisión.</td></tr>';
+  }
+
+  return {open, close, refresh, select, adjust, pay, stats, closeStats};
 })();
 
 /* ================================================================

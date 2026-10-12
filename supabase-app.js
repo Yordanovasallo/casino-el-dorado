@@ -470,7 +470,10 @@ function ledgerDataHtml(){
    ================================================================ */
 function updateAgentUI(){
   const card = document.getElementById("agentCard");
-  if(card){ if(current && current.agent) card.classList.remove("hidden"); else card.classList.add("hidden"); }
+  const btn = document.getElementById("agentStatsBtn");
+  const isAg = !!(current && current.agent);
+  if(card){ card.classList.toggle("hidden", !isAg); }
+  if(btn){ btn.classList.toggle("hidden", !isAg); }
 }
 
 const AG = (function(){
@@ -580,7 +583,44 @@ const AG = (function(){
     }catch(e){ alert(e.message||"No se pudo cobrar la comisión."); }
   }
 
-  return {open, close, refresh, select, adjust, pay};
+  function stats(){
+    if(!current || !current.agent) return alert("No eres agente.");
+    const menu = $("profileMenu"); if(menu) menu.classList.add("hidden");
+    $("agentPanel").classList.add("hidden");
+    $("mainGames").classList.add("hidden");
+    $("agentStats").classList.remove("hidden");
+    $("agentStatsSummary").innerHTML = '<span class="muted">Cargando…</span>';
+    $("agentStatsDays").innerHTML = '';
+    $("agentStatsPlayers").innerHTML = '';
+    window.scrollTo(0,0);
+    return statsRefresh();
+  }
+  function closeStats(){
+    $("agentStats").classList.add("hidden");
+    $("mainGames").classList.remove("hidden");
+  }
+  async function statsRefresh(){
+    if(!current || !current.agent) return;
+    try{
+      const r = await sbRpc("agent_commission_report", { p_agent: current.id });
+      renderStats(r || {});
+    }catch(e){
+      const b = $("agentStatsSummary"); if(b) b.innerHTML = '<b class="bad">'+escapeHtml(e.message||"Error al cargar.")+'</b>';
+    }
+  }
+  function renderStats(r){
+    const sum = $("agentStatsSummary");
+    if(sum) sum.innerHTML = `Comisión: <b>${r.rate||0}%</b> · Ganancia que generan a la casa: <b>${r.total_profit||0} 🪙</b> ·
+      Comisión acumulada: <b class="ok">${r.total_commission||0} 🪙</b>`;
+    const days = $("agentStatsDays");
+    if(days) days.innerHTML = (r.by_day||[]).map(d=>`<tr><td>${escapeHtml(String(d.day))}</td><td>${d.players||0}</td><td>${d.profit||0} 🪙</td><td class="ok">${d.commission||0} 🪙</td></tr>`).join("")
+      || '<tr><td colspan="4" class="muted">Todavía no hay comisiones registradas.</td></tr>';
+    const pls = $("agentStatsPlayers");
+    if(pls) pls.innerHTML = (r.by_player||[]).map(p=>`<tr><td>${escapeHtml(String(p.name))} <span class="adm-unum">#${p.num}</span></td><td>${p.profit||0} 🪙</td><td class="ok">${p.commission||0} 🪙</td></tr>`).join("")
+      || '<tr><td colspan="3" class="muted">Sin jugadores con comisión.</td></tr>';
+  }
+
+  return {open, close, refresh, select, adjust, pay, stats, closeStats};
 })();
 
 /* ================================================================
