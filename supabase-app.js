@@ -1274,12 +1274,10 @@ const C3 = (function(){
     const label = st === "won" ? "GANÓ" : st === "lost" ? "PERDIÓ" : "EN JUEGO";
     const num = (b.num||"").padStart(3, "0");
     const st3 = b.stake_three||0, st2 = b.stake_two||0, total = st3 + st2;
-    const parts = [];
-    if(st3>0) parts.push(`${st3} a las 3`);
-    if(st2>0) parts.push(`${st2} últimos 2`);
+    const code = `${num}-${st3}-${st2}`;
     const right = st === "won" ? `+${b.payout} 🪙` : st === "lost" ? `−${total} 🪙` : `${total} 🪙 apostados`;
     const win = withWinner && b.winner ? `<span class="muted"> · salió ${escapeHtml(b.winner)}</span>` : "";
-    return `<div class="c3-mrow"><div>🎯 <b>${escapeHtml(num)}</b><span class="c3-badge ${st}">${label}</span> <span class="muted">${parts.join(" · ")}</span>${win}</div><div style="white-space:nowrap;color:${st==='won'?'#7dffb0':st==='lost'?'#ff9aa8':'#cdd6ea'}">${right}</div></div>`;
+    return `<div class="c3-mrow"><div><b>${escapeHtml(code)}</b><span class="c3-badge ${st}">${label}</span>${win}</div><div style="white-space:nowrap;color:${st==='won'?'#7dffb0':st==='lost'?'#ff9aa8':'#cdd6ea'}">${right}</div></div>`;
   }
 
   function renderMine(){
@@ -1313,7 +1311,7 @@ const C3 = (function(){
       if(r && typeof r.balance === "number"){ current.balance = r.balance; updateBalanceUI(); }
       const num2 = $("c3Num"); if(num2) num2.value = "";
       const s3i = $("c3StakeThree"), s2i = $("c3StakeTwo");
-      if(s3i) s3i.value = 0; if(s2i) s2i.value = 0;
+      if(s3i) s3i.value = ""; if(s2i) s2i.value = "";
       msg(`✅ Jugada al ${escapeHtml((r&&r.num)||num)} enviada (${(r&&r.stake_three)||0} a las 3, ${(r&&r.stake_two)||0} a los últimos 2).`, "win");
       load(true);
     }catch(e){ msg("No se pudo apostar: " + msgDeError(e), "danger"); }
