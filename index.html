@@ -1604,8 +1604,14 @@ const C3 = (function(){
 
   function listText(){
     const bets = (adminData && adminData.bets) || [];
-    return [...bets].sort((a,b)=>(a.created||0)-(b.created||0))
-      .map(b=>`${b.name}-${b.num}-${b.stake_three}-${b.stake_two}`).join("\n");
+    const sorted = [...bets].sort((a,b)=>(a.created||0)-(b.created||0));
+    const groups = new Map();
+    for(const b of sorted){
+      const k = b.user_id || b.name || "?";
+      if(!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(`${b.name}-${b.num}-${b.stake_three}-${b.stake_two}`);
+    }
+    return [...groups.values()].map(arr=>arr.join("\n")).join("\n");
   }
   async function copyList(){
     const t = listText();

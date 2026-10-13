@@ -152,7 +152,7 @@ begin
   if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
   rid := public._cash3_open_round((extract(epoch from now()) * 1000)::bigint);
   select coalesce(sum(stake_three + stake_two), 0) into tot from cash3_bet where round_id = rid and status = 'open';
-  select coalesce(jsonb_agg(jsonb_build_object('num', b.num, 'stake_three', b.stake_three, 'stake_two', b.stake_two,
+  select coalesce(jsonb_agg(jsonb_build_object('user_id', b.user_id, 'num', b.num, 'stake_three', b.stake_three, 'stake_two', b.stake_two,
            'stake', b.stake_three + b.stake_two, 'name', b.uname, 'created', b.created) order by b.created desc), '[]'::jsonb)
     into bets from cash3_bet b where b.round_id = rid and b.status = 'open';
   select coalesce(jsonb_agg(jsonb_build_object('num', t.num, 'count', t.n, 'stake', t.s,
