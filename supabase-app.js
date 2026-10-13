@@ -1331,11 +1331,16 @@ const C3 = (function(){
       const r = await sbRpc("cash3_admin_info", { p_token: token }) || {};
       adminData = r;
       const by = r.by_num || [];
-      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas`;
+      const mx = $("c3MaxNum");
+      if(mx && r.max_per_num != null && mx.value === "") mx.value = r.max_per_num;
+      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas · Tope por número: <b>${r.max_per_num||0}</b>`;
       const ta = $("c3List");
       if(ta) ta.value = listText();
       if(list){
-        list.innerHTML = by.length ? by.map(b=>`<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.count} jug. · a las 3: ${b.stake_three} · últ. 2: ${b.stake_two}</span><span class="adm-ubal">${b.stake} 🪙</span></div>`).join("")
+        list.innerHTML = by.length ? by.map(b=>{
+          const rem = b.remaining != null ? ` · <span style="color:${b.remaining>0?'#7dffb0':'#ff9aa8'}">${b.remaining} disp.</span>` : "";
+          return `<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.count} jug. · a las 3: ${b.stake_three} · últ. 2: ${b.stake_two}${rem}</span><span class="adm-ubal">${b.stake} 🪙</span></div>`;
+        }).join("")
           : '<div class="muted" style="padding:8px">Sin apuestas abiertas todavía.</div>';
       }
     }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
@@ -1356,7 +1361,19 @@ const C3 = (function(){
     }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
   }
 
-  return {open, close, load, clean, preview, place, adminInfo, adminSettle, copyList, shareList};
+  async function adminSaveMax(){
+    if(!current || !current.admin) return;
+    const v = Math.max(int($("c3MaxNum"),0), 0);
+    const info = $("c3AdminInfo");
+    try{
+      const r = await sbRpc("cash3_admin_config", { p_token: token, p_max: v });
+      if(info) info.innerHTML = "Tope por número guardado: <b>" + (r&&r.max_per_num !== undefined ? r.max_per_num : v) + "</b> fichas.";
+      load(true);
+      adminInfo(true);
+    }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
+  }
+
+  return {open, close, load, clean, preview, place, adminInfo, adminSettle, adminSaveMax, copyList, shareList};
 })();
 
 

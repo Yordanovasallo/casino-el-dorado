@@ -10,9 +10,11 @@
 create table if not exists public.cash3_config (
   id int primary key,
   mult_three int not null default 400,
-  mult_two int not null default 70
+  mult_two int not null default 70,
+  max_per_num bigint not null default 0
 );
 insert into public.cash3_config (id) values (1) on conflict (id) do nothing;
+alter table public.cash3_config add column if not exists max_per_num bigint not null default 0;
 
 create table if not exists public.cash3_round (
   id text primary key,
@@ -100,7 +102,7 @@ begin
           where finished and winner is not null order by settled desc limit 15) h;
   return jsonb_build_object(
     'round', rid, 'opened', r.opened, 'balance', u.balance,
-    'mult_three', cfg.mult_three, 'mult_two', cfg.mult_two,
+    'mult_three', cfg.mult_three, 'mult_two', cfg.mult_two, 'max_per_num', cfg.max_per_num,
     'mine', mine, 'recent', recent, 'history', hist);
 end $$;
 
@@ -110,12 +112,13 @@ language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare u users; r cash3_round; rid text; vnum text; st3 int; st2 int; total int; date_txt text; detail_txt text;
+declare u users; r cash3_round; cfg cash3_config; rid text; vnum text; st3 int; st2 int; total int; cur bigint; date_txt text; detail_txt text;
 begin
   u := public._sess_user(p_token);
   if u.id is null then raise exception 'Sesión expirada. Cierra y vuelve a entrar.'; end if;
   select * into u from users where id = u.id for update;
   if u.admin then raise exception 'La cuenta de administración no puede apostar.'; end if;
+  select * into cfg from cash3_config where id = 1;
   st3 := greatest(coalesce(p_stake_three, 0), 0);
   st2 := greatest(coalesce(p_stake_two, 0), 0);
   total := st3 + st2;
@@ -127,6 +130,14 @@ begin
   rid := public._cash3_open_round(p_now);
   select * into r from cash3_round where id = rid for update;
   if r.finished then raise exception 'La ronda acaba de cerrar. Vuelve a intentarlo.'; end if;
+  if cfg.max_per_num > 0 then
+    select coalesce(sum(stake_three + stake_two), 0) into cur
+      from cash3_bet where round_id = rid and num = vnum and status = 'open';
+    if cur + total > cfg.max_per_num then
+      raise exception 'El número % ya alcanzó el tope de la casa (% fichas). Máximo que puedes apostar ahora en ese número: % fichas.',
+        vnum, cfg.max_per_num, greatest(cfg.max_per_num - cur, 0);
+    end if;
+  end if;
   update users set balance = balance - total where id = u.id;
   insert into cash3_bet (round_id, user_id, uname, num, stake_three, stake_two, status, payout, created)
   values (rid, u.id, u.name, vnum, st3, st2, 'open', 0, p_now);
@@ -146,22 +157,40 @@ language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare a users; rid text; bets jsonb; tot bigint; bynum jsonb;
+declare a users; cfg cash3_config; rid text; bets jsonb; tot bigint; bynum jsonb; maxv bigint;
 begin
   a := public._sess_user(p_token);
   if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
+  select * into cfg from cash3_config where id = 1;
+  maxv := cfg.max_per_num;
   rid := public._cash3_open_round((extract(epoch from now()) * 1000)::bigint);
   select coalesce(sum(stake_three + stake_two), 0) into tot from cash3_bet where round_id = rid and status = 'open';
   select coalesce(jsonb_agg(jsonb_build_object('user_id', b.user_id, 'num', b.num, 'stake_three', b.stake_three, 'stake_two', b.stake_two,
            'stake', b.stake_three + b.stake_two, 'name', b.uname, 'created', b.created) order by b.created desc), '[]'::jsonb)
     into bets from cash3_bet b where b.round_id = rid and b.status = 'open';
   select coalesce(jsonb_agg(jsonb_build_object('num', t.num, 'count', t.n, 'stake', t.s,
-           'stake_three', t.s3, 'stake_two', t.s2) order by t.s desc), '[]'::jsonb)
+           'stake_three', t.s3, 'stake_two', t.s2,
+           'remaining', case when maxv > 0 then greatest(maxv - t.s, 0) else null end) order by t.s desc), '[]'::jsonb)
     into bynum from (
       select num, count(*) n, sum(stake_three + stake_two) s, sum(stake_three) s3, sum(stake_two) s2
       from cash3_bet where round_id = rid and status = 'open' group by num
     ) t;
-  return jsonb_build_object('round', rid, 'open_stake', tot, 'bets', bets, 'by_num', bynum);
+  return jsonb_build_object('round', rid, 'open_stake', tot, 'bets', bets, 'by_num', bynum, 'max_per_num', maxv);
+end $$;
+
+create or replace function public.cash3_admin_config(p_token text, p_max bigint)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare a users; v bigint;
+begin
+  a := public._sess_user(p_token);
+  if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
+  v := greatest(coalesce(p_max, 0), 0);
+  update cash3_config set max_per_num = v where id = 1;
+  return jsonb_build_object('max_per_num', v);
 end $$;
 
 create or replace function public.cash3_admin_settle(p_token text, p_winner text, p_now bigint)
@@ -216,3 +245,4 @@ grant execute on function public.cash3_state(text) to anon, authenticated;
 grant execute on function public.cash3_place(text, text, integer, integer, bigint) to anon, authenticated;
 grant execute on function public.cash3_admin_info(text) to anon, authenticated;
 grant execute on function public.cash3_admin_settle(text, text, bigint) to anon, authenticated;
+grant execute on function public.cash3_admin_config(text, bigint) to anon, authenticated;
