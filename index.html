@@ -405,7 +405,8 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 
 <div id="tabAdmin" class="hidden">
 <section id="admin" class="card"><h2>Panel de administración</h2><div class="grid"><div><div class="muted">Usuarios</div><div id="adminUsers" class="balance">0</div></div><div><div class="muted">Fichas en circulación</div><div id="adminBalance" class="balance">0</div></div></div>
-<div id="scratchStats" class="notice" style="margin:12px 0"></div>
+<button class="ghost" style="width:100%;display:flex;justify-content:space-between;align-items:center" onclick="toggleStat('scratchStatsWrap','scratchCaret')"><span>🎟️ Estadísticas de Raspa y Gana</span><span id="scratchCaret">▸</span></button>
+<div id="scratchStatsWrap" class="hidden" style="margin-top:8px"><div id="scratchStats" class="notice" style="margin:8px 0"></div></div>
 <h3>⚽ Apuestas deportivas</h3>
 <div id="betAdminInfo" class="notice" style="margin:8px 0">Las cuotas y los resultados se actualizan solos cada 12 horas. Puedes forzarlo aquí.</div>
 <input id="betAdminSports" placeholder="Deportes (ej: soccer_epl,soccer_spain_la_liga,basketball_nba)">
@@ -425,7 +426,8 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 <div class="grid"><button class="primary" onclick="C3.copyList()">📋 Copiar lista</button><button class="ghost" onclick="C3.shareList()">📲 Enviar por WhatsApp</button></div>
 <h3>🪙 Cara o Cruz</h3>
 <div class="muted" style="font-size:12px">Juego instantáneo de moneda. El múltiplo es lo que paga por cada ficha apostada (ej. 1.9 = apuestas 10 fichas y aciertas → ganas 19).</div>
-<div id="cfAdminInfo" class="notice" style="margin:8px 0">—</div>
+<button class="ghost" style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:6px" onclick="toggleStat('cfAdminStats','cfCaret')"><span>📊 Estadísticas de Cara o Cruz</span><span id="cfCaret">▸</span></button>
+<div id="cfAdminStats" class="hidden" style="margin-top:8px"><div id="cfAdminInfo" class="notice" style="margin:0">—</div></div>
 <div class="grid" style="margin-top:8px">
 <input id="cfMult" type="number" step="0.1" min="1.1" max="10" placeholder="Paga por ficha (ej: 1.9)">
 <input id="cfMaxBet" type="number" min="1" placeholder="Máximo por apuesta">
@@ -907,6 +909,13 @@ function renderAdmin(){
 function toggleLedger(){
   const w = document.getElementById("ledgerWrap"); if(!w) return;
   const c = document.getElementById("ledgerCaret");
+  const open = w.classList.toggle("hidden") === false;
+  if(c) c.textContent = open ? "▾" : "▸";
+}
+
+function toggleStat(wrapId, caretId){
+  const w = document.getElementById(wrapId); if(!w) return;
+  const c = document.getElementById(caretId);
   const open = w.classList.toggle("hidden") === false;
   if(c) c.textContent = open ? "▾" : "▸";
 }
