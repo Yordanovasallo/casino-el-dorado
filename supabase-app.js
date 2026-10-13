@@ -125,9 +125,8 @@ function shrinkImage(src,size){
 function updateBalanceUI(){
   if(!current) return;
   const shown = current.balance - (pendingReveal ? pendingReveal.prize : 0);
-  const b=document.getElementById("balance"), t=document.getElementById("topBalance");
-  if(b) b.textContent = shown;
-  if(t) t.textContent = shown;
+  const set = (id)=>{ const el=document.getElementById(id); if(el) el.textContent = shown; };
+  set("balance"); set("topBalance"); set("cashierBalance");
 }
 
 /* Actualiza el usuario actual cada 2 s (equivalente al tiempo real de antes) */
@@ -137,11 +136,67 @@ function startUserPoll(){
     if(!current) return;
     try{
       const u = await sbRpc("get_user", { p_token: token });
-      if(u && u.id){ current = u; updateBalanceUI(); updateAgentUI(); }
+      if(u && u.id){ current = u; updateBalanceUI(); updateAgentUI(); renderProfile(); }
     }catch(e){}
   }, 2000);
 }
 function stopUserPoll(){ if(userTimer){ clearInterval(userTimer); userTimer = null; } }
+
+/* ---------------- navegación tipo app ---------------- */
+const NAV_TABS = ["home","cashier","profile","admin"];
+const GAME_SCREENS = ["rouletteGame","rouletteGame2","scratchGame","betGame","c3Game","agentPanel","agentStats"];
+
+function hideGameScreens(){
+  GAME_SCREENS.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add("hidden"); });
+}
+
+function goTab(name){
+  if(!current) return;
+  hideGameScreens();
+  NAV_TABS.forEach(t=>{
+    const el = document.getElementById("tab" + t.charAt(0).toUpperCase() + t.slice(1));
+    if(el) el.classList.toggle("hidden", t !== name);
+  });
+  const nav = document.getElementById("appNav");
+  if(nav){
+    nav.classList.remove("hidden");
+    nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on", (b.getAttribute("data-tab")||"") === name || b.id === "nav-"+name));
+  }
+  if(name === "home"){
+    const mg = document.getElementById("mainGames"); if(mg) mg.classList.remove("hidden");
+    updateAgentUI();
+  }
+  if(name === "cashier") loadMyMoves();
+  if(name === "profile") renderProfile();
+  if(name === "admin"){
+    document.getElementById("admin").classList.remove("hidden");
+    startAdminWatch();
+    refreshAdmin();
+  }
+}
+
+function renderProfile(){
+  if(!current) return;
+  const n=document.getElementById("profName"), i=document.getElementById("profId"),
+        a=document.getElementById("profAvatar"), ag=document.getElementById("profAgent"),
+        ab=document.getElementById("profAgentBtn");
+  if(n) n.textContent = current.admin ? "Administrador" : current.name;
+  if(i) i.textContent = (current.num != null ? ("ID " + current.num) : "ID —") + " · usuario " + current.id;
+  if(a) a.src = current.avatar || defaultAvatar();
+  if(ag) ag.textContent = current.agent ? ("🧑‍💼 Agente · código " + (current.agent_code||"—") + " · comisión " + (current.commission||0) + "%") : "";
+  if(ab) ab.classList.toggle("hidden", !current.agent);
+}
+
+async function loadMyMoves(){
+  if(!current) return;
+  const tb = document.getElementById("myMoves"); if(!tb) return;
+  try{
+    const rows = await sbRead("ledger?select=date,type,amount,detail,ts&uname=eq." + encodeURIComponent(current.name) + "&order=ts.desc&limit=30");
+    const arr = Array.isArray(rows) ? rows : [];
+    tb.innerHTML = arr.map(x=>`<tr><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.type)}</td><td class="${x.amount>=0?"ok":"bad"}">${money(x.amount)}</td><td>${escapeHtml(x.detail||"")}</td></tr>`).join("")
+      || '<tr><td colspan="4" class="muted">Sin movimientos todavía.</td></tr>';
+  }catch(e){ tb.innerHTML = '<tr><td colspan="4" class="muted">No se pudieron cargar los movimientos.</td></tr>'; }
+}
 
 /* ---------------- sesión ---------------- */
 async function register(){
@@ -202,6 +257,10 @@ async function enter(){
   document.getElementById("welcome").textContent = isAdmin ? "Administrador" : current.name;
   document.getElementById("uid").textContent = (current.num != null ? current.num : current.id);
   document.getElementById("avatar").src = current.avatar || defaultAvatar();
+  const nav = document.getElementById("appNav");
+  if(nav) nav.classList.remove("hidden");
+  const navAdm = document.getElementById("nav-admin");
+  if(navAdm) navAdm.classList.toggle("hidden", !isAdmin);
   if(isAdmin){
     document.getElementById("admin").classList.remove("hidden");
     startAdminWatch();
@@ -210,6 +269,8 @@ async function enter(){
     stopAdminWatch();
   }
   updateBalanceUI();
+  renderProfile();
+  goTab("home");
   startUserPoll();
   R1.refresh(); R2.refresh();
   updateAgentUI();
@@ -222,6 +283,8 @@ function logout(){
   localStorage.removeItem("casino_token");
   current = null; token = null; pendingReveal = null;
   document.getElementById("app").classList.add("hidden");
+  const nav = document.getElementById("appNav");
+  if(nav) nav.classList.add("hidden");
   document.getElementById("auth").classList.remove("hidden");
   liPass.value = "";
   showMsg("Sesión cerrada.");

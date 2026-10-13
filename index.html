@@ -186,6 +186,20 @@ body{overflow-x:hidden}}
 #scratchCanvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;transition:opacity .6s}
 #scratchMsg{border:1px solid rgba(245,196,81,.2);border-left:3px solid #f5c451;text-align:center}
 </style>
+<style id="app-nav-style">
+#app{padding-bottom:92px}
+#appNav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;gap:4px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+background:linear-gradient(180deg,#131a30ee,#0b1220f8);backdrop-filter:blur(14px);border-top:1px solid rgba(245,196,81,.45);
+box-shadow:0 -6px 22px rgba(0,0,0,.55)}
+#appNav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:transparent;border:0;margin:0;padding:7px 2px;border-radius:14px;
+color:#9fb0d0;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer}
+#appNav button span{font-size:20px}
+#appNav button:hover{background:rgba(245,196,81,.1);color:var(--gold2)}
+#appNav button.on{color:var(--gold2);background:rgba(245,196,81,.14);box-shadow:inset 0 0 0 1px rgba(245,196,81,.35)}
+#appNav button.on span{filter:drop-shadow(0 0 8px rgba(245,196,81,.7))}
+body:has(.gscreen:not(.hidden)) #appNav{display:none!important}
+body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
+</style>
 </head>
 <body>
 <div id="chipRain" class="chip-rain"></div>
@@ -201,6 +215,7 @@ body{overflow-x:hidden}}
 </section>
 
 <section id="app" class="hidden">
+<div id="tabHome">
 <div class="card"><div class="profile" onclick="toggleProfile()"><img id="avatar" class="avatar" alt="avatar"><div><strong id="welcome"></strong><div class="muted">ID: <span id="uid"></span></div></div><div style="margin-left:auto">⌄</div></div>
 <div id="profileMenu" class="menu hidden"><button class="ghost" onclick="changePassword()">🔐 Cambiar contraseña</button><button class="ghost" onclick="sendFichas()">🪙 Enviar fichas a otro usuario</button><button class="ghost" onclick="uploadAvatar()">🖼️ Poner imagen de la galería</button><button class="ghost hidden" id="agentStatsBtn" onclick="AG.stats()">📊 Estadística de agente</button><button class="danger" onclick="logout()">↪ Cerrar sesión</button></div></div>
 
@@ -215,8 +230,9 @@ body{overflow-x:hidden}}
 </div></div>
 <div id="agentCard" class="card hidden"><h3 style="margin-top:0">🧑💼 Panel de agente</h3><div class="muted">Gestiona tus jugadores, ajusta su saldo y cobra tu comisión.</div><button class="primary" onclick="AG.open()" style="margin-top:10px">Abrir panel de agente</button></div>
 </div>
+</div>
 
-<section id="rouletteGame" class="card hidden">
+<section id="rouletteGame" class="card gscreen hidden">
 <div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="R1.close()">← Volver</button><h2 style="margin:0">🎡 Ruleta El Dorado</h2></div>
 <div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
 <div class="muted">CADA PARTICIPACIÓN</div><div style="font-size:30px;font-weight:800;color:#f5c451">🪙 50 FICHAS</div>
@@ -227,7 +243,7 @@ body{overflow-x:hidden}}
 </div>
 <div class="card"><h3 style="margin-top:0">👥 Participantes</h3><div id="rouletteParticipants" style="display:grid;gap:8px"></div></div>
 </section>
-<section id="rouletteGame2" class="card hidden">
+<section id="rouletteGame2" class="card gscreen hidden">
 <div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="R2.close()">← Volver</button><h2 style="margin:0">⚡ Ruleta Rápida</h2></div>
 <div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
 <div class="muted">CADA PARTICIPACIÓN</div><div style="font-size:30px;font-weight:800;color:#f5c451">🪙 5 FICHAS</div>
@@ -239,7 +255,7 @@ body{overflow-x:hidden}}
 <div class="card"><h3 style="margin-top:0">👥 Participantes</h3><div id="rouletteParticipants2" style="display:grid;gap:8px"></div></div>
 </section>
 
-<section id="scratchGame" class="card hidden">
+<section id="scratchGame" class="card gscreen hidden">
 <div style="display:flex;align-items:center;gap:10px"><button class="ghost" style="width:auto" onclick="SC.close()">← Volver</button><h2 style="margin:0">🎟️ Raspa y Gana</h2></div>
 <div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
 <div class="muted">CADA CARTÓN</div><div style="font-size:30px;font-weight:800;color:#f5c451">🪙 10 FICHAS</div>
@@ -250,7 +266,7 @@ body{overflow-x:hidden}}
 <div id="scratchMsg" class="notice" style="margin-top:12px">Compra un cartón y rasca con el dedo o el mouse.</div>
 </div></section>
 
-<section id="betGame" class="card hidden">
+<section id="betGame" class="card gscreen hidden">
 <style>
 .bet-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .bet-head h2{margin:0}
@@ -292,7 +308,7 @@ body{overflow-x:hidden}}
 </div>
 </section>
 
-<section id="c3Game" class="card hidden">
+<section id="c3Game" class="card gscreen hidden">
 <style>
 .c3-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .c3-head h2{margin:0}
@@ -334,7 +350,7 @@ body{overflow-x:hidden}}
 <div class="c3-box"><h3 style="margin-top:0">📜 Mis jugadas recientes</h3><div id="c3Recent" style="display:grid;gap:8px"></div></div>
 </section>
 
-<section id="agentPanel" class="card hidden">
+<section id="agentPanel" class="card gscreen hidden">
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="ghost" style="width:auto" onclick="AG.close()">← Volver</button><h2 style="margin:0">🧑💼 Panel de agente</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="AG.refresh()">🔄 Actualizar</button></div>
 <div id="agentSummary" class="notice" style="margin:12px 0"></div>
 <h3>👥 Tus jugadores</h3>
@@ -343,7 +359,7 @@ body{overflow-x:hidden}}
 <div id="agentDetail" class="notice"><div class="muted" style="padding:10px">Selecciona un jugador de la lista.</div></div>
 </section>
 
-<section id="agentStats" class="card hidden">
+<section id="agentStats" class="card gscreen hidden">
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="ghost" style="width:auto" onclick="AG.closeStats()">← Volver</button><h2 style="margin:0">📊 Estadística de agente</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="AG.stats()">🔄 Actualizar</button></div>
 <div id="agentStatsSummary" class="notice" style="margin:12px 0"></div>
 <h3>📅 Comisión por días</h3>
@@ -354,7 +370,8 @@ body{overflow-x:hidden}}
 <div class="muted" style="font-size:12px;margin-top:10px">Cada día queda congelado tal como terminó (con el % de comisión de ese día) y no se borra.</div>
 </section>
 
-<section id="admin" class="card hidden"><h2>Panel de administración</h2><div class="grid"><div><div class="muted">Usuarios</div><div id="adminUsers" class="balance">0</div></div><div><div class="muted">Fichas en circulación</div><div id="adminBalance" class="balance">0</div></div></div>
+<div id="tabAdmin" class="hidden">
+<section id="admin" class="card"><h2>Panel de administración</h2><div class="grid"><div><div class="muted">Usuarios</div><div id="adminUsers" class="balance">0</div></div><div><div class="muted">Fichas en circulación</div><div id="adminBalance" class="balance">0</div></div></div>
 <div id="scratchStats" class="notice" style="margin:12px 0"></div>
 <h3>⚽ Apuestas deportivas</h3>
 <div id="betAdminInfo" class="notice" style="margin:8px 0">Las cuotas y los resultados se actualizan solos cada 12 horas. Puedes forzarlo aquí.</div>
@@ -406,7 +423,51 @@ body{overflow-x:hidden}}
 <div style="overflow:auto"><table><thead><tr><th>Día</th><th>Ganancia bruta</th><th>Comisión agentes</th><th>Ganancia neta</th></tr></thead><tbody id="adminDaily"></tbody></table></div>
 <button class="ghost" style="width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:12px" onclick="toggleLedger()"><span>📜 Registro de movimientos</span><span id="ledgerCaret">▸</span></button>
 <div id="ledgerWrap" class="hidden" style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody id="ledger"></tbody></table></div></section>
-</section></div>
+</div>
+<section id="tabCashier" class="hidden">
+<div class="card" style="text-align:center;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420">
+<h2 style="margin-top:0">💵 Cajero</h2>
+<div class="muted">Tu saldo disponible</div>
+<div class="balance" style="font-size:46px;text-align:center;margin:6px 0"><span id="cashierBalance">0</span> 🪙</div>
+<div class="grid" style="margin-top:14px">
+<button class="primary" onclick="recharge()">＋ Recargar saldo</button>
+<button class="ghost" onclick="sendFichas()">🪙 Enviar fichas</button>
+</div>
+<div class="muted" style="font-size:12px;margin-top:10px">La recarga se solicita al administrador por WhatsApp. Cuando confirmes el pago te sumamos las fichas.</div>
+</div>
+<div class="card"><h3 style="margin-top:0">🧾 Mis últimos movimientos</h3>
+<div id="myMovesWrap" class="muted" style="font-size:12px;margin-bottom:8px">Tus recargas, retiros, premios y transferencias.</div>
+<div style="overflow:auto"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Fichas</th><th>Detalle</th></tr></thead><tbody id="myMoves"></tbody></table></div>
+</div>
+</section>
+<section id="tabProfile" class="hidden">
+<div class="card">
+<div style="display:flex;align-items:center;gap:14px">
+<img id="profAvatar" class="avatar" alt="avatar" style="width:72px;height:72px">
+<div>
+<div style="font-size:20px;font-weight:800" id="profName"></div>
+<div class="muted" style="font-size:12px" id="profId"></div>
+<div class="muted" style="font-size:12px;margin-top:3px" id="profAgent"></div>
+</div>
+</div>
+<div class="menu">
+<button class="ghost" onclick="uploadAvatar()">🖼️ Poner imagen de la galería</button>
+<button class="ghost" onclick="changePassword()">🔐 Cambiar contraseña</button>
+<button class="ghost" onclick="sendFichas()">🪙 Enviar fichas a otro usuario</button>
+<button class="ghost hidden" id="profAgentBtn" onclick="AG.stats()">📊 Estadística de agente</button>
+<div class="muted" style="font-size:12px">Mantén tu contraseña en secreto. Si la pierdes, el administrador puede reiniciarla.</div>
+<button class="danger" onclick="logout()">↪ Cerrar sesión</button>
+</div>
+</div>
+</section>
+</section>
+<nav id="appNav" class="hidden">
+<button data-tab="home" onclick="goTab('home')"><span>🎲</span>Juegos</button>
+<button data-tab="cashier" onclick="goTab('cashier')"><span>💵</span>Cajero</button>
+<button data-tab="profile" onclick="goTab('profile')"><span>👤</span>Perfil</button>
+<button id="nav-admin" data-tab="admin" onclick="goTab('admin')" class="hidden"><span>⚙️</span>Admin</button>
+</nav>
+</div>
 
 <script>/* ================================================================
    CAPA SUPABASE (PostgREST + RPC)
@@ -535,9 +596,8 @@ function shrinkImage(src,size){
 function updateBalanceUI(){
   if(!current) return;
   const shown = current.balance - (pendingReveal ? pendingReveal.prize : 0);
-  const b=document.getElementById("balance"), t=document.getElementById("topBalance");
-  if(b) b.textContent = shown;
-  if(t) t.textContent = shown;
+  const set = (id)=>{ const el=document.getElementById(id); if(el) el.textContent = shown; };
+  set("balance"); set("topBalance"); set("cashierBalance");
 }
 
 /* Actualiza el usuario actual cada 2 s (equivalente al tiempo real de antes) */
@@ -547,11 +607,67 @@ function startUserPoll(){
     if(!current) return;
     try{
       const u = await sbRpc("get_user", { p_token: token });
-      if(u && u.id){ current = u; updateBalanceUI(); updateAgentUI(); }
+      if(u && u.id){ current = u; updateBalanceUI(); updateAgentUI(); renderProfile(); }
     }catch(e){}
   }, 2000);
 }
 function stopUserPoll(){ if(userTimer){ clearInterval(userTimer); userTimer = null; } }
+
+/* ---------------- navegación tipo app ---------------- */
+const NAV_TABS = ["home","cashier","profile","admin"];
+const GAME_SCREENS = ["rouletteGame","rouletteGame2","scratchGame","betGame","c3Game","agentPanel","agentStats"];
+
+function hideGameScreens(){
+  GAME_SCREENS.forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.add("hidden"); });
+}
+
+function goTab(name){
+  if(!current) return;
+  hideGameScreens();
+  NAV_TABS.forEach(t=>{
+    const el = document.getElementById("tab" + t.charAt(0).toUpperCase() + t.slice(1));
+    if(el) el.classList.toggle("hidden", t !== name);
+  });
+  const nav = document.getElementById("appNav");
+  if(nav){
+    nav.classList.remove("hidden");
+    nav.querySelectorAll("button").forEach(b=>b.classList.toggle("on", (b.getAttribute("data-tab")||"") === name || b.id === "nav-"+name));
+  }
+  if(name === "home"){
+    const mg = document.getElementById("mainGames"); if(mg) mg.classList.remove("hidden");
+    updateAgentUI();
+  }
+  if(name === "cashier") loadMyMoves();
+  if(name === "profile") renderProfile();
+  if(name === "admin"){
+    document.getElementById("admin").classList.remove("hidden");
+    startAdminWatch();
+    refreshAdmin();
+  }
+}
+
+function renderProfile(){
+  if(!current) return;
+  const n=document.getElementById("profName"), i=document.getElementById("profId"),
+        a=document.getElementById("profAvatar"), ag=document.getElementById("profAgent"),
+        ab=document.getElementById("profAgentBtn");
+  if(n) n.textContent = current.admin ? "Administrador" : current.name;
+  if(i) i.textContent = (current.num != null ? ("ID " + current.num) : "ID —") + " · usuario " + current.id;
+  if(a) a.src = current.avatar || defaultAvatar();
+  if(ag) ag.textContent = current.agent ? ("🧑‍💼 Agente · código " + (current.agent_code||"—") + " · comisión " + (current.commission||0) + "%") : "";
+  if(ab) ab.classList.toggle("hidden", !current.agent);
+}
+
+async function loadMyMoves(){
+  if(!current) return;
+  const tb = document.getElementById("myMoves"); if(!tb) return;
+  try{
+    const rows = await sbRead("ledger?select=date,type,amount,detail,ts&uname=eq." + encodeURIComponent(current.name) + "&order=ts.desc&limit=30");
+    const arr = Array.isArray(rows) ? rows : [];
+    tb.innerHTML = arr.map(x=>`<tr><td>${escapeHtml(x.date)}</td><td>${escapeHtml(x.type)}</td><td class="${x.amount>=0?"ok":"bad"}">${money(x.amount)}</td><td>${escapeHtml(x.detail||"")}</td></tr>`).join("")
+      || '<tr><td colspan="4" class="muted">Sin movimientos todavía.</td></tr>';
+  }catch(e){ tb.innerHTML = '<tr><td colspan="4" class="muted">No se pudieron cargar los movimientos.</td></tr>'; }
+}
 
 /* ---------------- sesión ---------------- */
 async function register(){
@@ -612,6 +728,10 @@ async function enter(){
   document.getElementById("welcome").textContent = isAdmin ? "Administrador" : current.name;
   document.getElementById("uid").textContent = (current.num != null ? current.num : current.id);
   document.getElementById("avatar").src = current.avatar || defaultAvatar();
+  const nav = document.getElementById("appNav");
+  if(nav) nav.classList.remove("hidden");
+  const navAdm = document.getElementById("nav-admin");
+  if(navAdm) navAdm.classList.toggle("hidden", !isAdmin);
   if(isAdmin){
     document.getElementById("admin").classList.remove("hidden");
     startAdminWatch();
@@ -620,6 +740,8 @@ async function enter(){
     stopAdminWatch();
   }
   updateBalanceUI();
+  renderProfile();
+  goTab("home");
   startUserPoll();
   R1.refresh(); R2.refresh();
   updateAgentUI();
@@ -632,6 +754,8 @@ function logout(){
   localStorage.removeItem("casino_token");
   current = null; token = null; pendingReveal = null;
   document.getElementById("app").classList.add("hidden");
+  const nav = document.getElementById("appNav");
+  if(nav) nav.classList.add("hidden");
   document.getElementById("auth").classList.remove("hidden");
   liPass.value = "";
   showMsg("Sesión cerrada.");
