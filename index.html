@@ -331,9 +331,13 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 .c3-badge.open{background:#33305a;color:#cdd6ea}
 .c3-hist{display:flex;gap:8px;overflow:auto;padding:4px 0}
 .c3-ball{min-width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;background:radial-gradient(circle at 30% 25%,#fff6d6,#f5c451 45%,#8a6a12);color:#3a2a00;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.c3-sched{margin:0 0 12px;padding:12px 14px;border-radius:14px;font-size:15px;border:1px solid}
+.c3-sched.open{background:linear-gradient(180deg,#142412,#0a1410);border-color:#1f6b3a;color:#7dffb0}
+.c3-sched.closed{background:linear-gradient(180deg,#3a1420,#150a10);border-color:#a03b4d;color:#ffc3cd}
 </style>
 <div class="c3-head"><button class="ghost" style="width:auto" onclick="C3.close()">← Volver</button><h2>🎲 Cash 3</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="C3.load()">🔄 Actualizar</button></div>
 <div class="c3-top">🪙 Saldo: <b id="c3Balance" style="color:#f5c451">0</b> fichas · <span class="muted">Elige a qué juegas antes de apostar</span></div>
+<div id="c3Sched" class="c3-sched open" style="display:none"></div>
 <div class="c3-box">
 <div class="muted" style="text-align:center">Escribe tu número de 3 dígitos</div>
 <div class="c3-digits"><input id="c3Num" class="c3-input" inputmode="numeric" maxlength="3" placeholder="000" oninput="C3.clean()"></div>
@@ -343,7 +347,7 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 <div class="c3-mode" style="cursor:default"><div class="t">🎯 Últimos 2</div><div class="p" id="c3PayTwo">paga 70 por ficha</div><input id="c3StakeTwo" class="c3-stake" type="number" min="0" inputmode="numeric" style="width:100%;margin-top:8px" oninput="C3.preview()"></div>
 </div>
 <div id="c3Preview" class="muted" style="text-align:center;font-size:13px;margin:-4px 0 10px"></div>
-<button class="primary" style="width:100%" onclick="C3.place()">🎲 APOSTAR</button>
+<button class="primary" id="c3BetBtn" style="width:100%" onclick="C3.place()">🎲 APOSTAR</button>
 <div id="c3Msg" class="notice" style="margin-top:12px">Escribe tu número, cuánto juegas a las 3 y/o a los últimos 2.</div>
 </div>
 <div class="c3-box"><h3 style="margin-top:0">🎯 Mis jugadas en esta ronda</h3><div id="c3Mine" style="display:grid;gap:8px"></div></div>
@@ -1855,6 +1859,26 @@ const C3 = (function(){
     const p3 = $("c3PayThree"), p2 = $("c3PayTwo");
     if(p3 && data && data.mult_three) p3.textContent = "paga " + data.mult_three + " por ficha" + ((data.max_three>0) ? " · tope " + data.max_three : " · sin tope");
     if(p2 && data && data.mult_two) p2.textContent = "paga " + data.mult_two + " por ficha" + ((data.max_two>0) ? " · tope " + data.max_two : " · sin tope");
+    const s = $("c3Sched");
+    if(s && data){
+      const closed = !!data.closed;
+      const kind = data.kind_label || "Sorteo";
+      const cutoff = data.cutoff_label || "…";
+      s.style.display = "block";
+      if(closed){
+        s.className = "c3-sched closed";
+        s.innerHTML = `⛔ Sorteo <b>${escapeHtml(kind)}</b> cerrado a las <b>${escapeHtml(cutoff)}</b> · esperando el resultado… <span class="muted" style="font-size:12px">Próximo: <b>${escapeHtml(data.next_kind||"")}</b> a las <b>${escapeHtml(data.next_cutoff_label||"…")}</b></span>`;
+      } else {
+        s.className = "c3-sched open";
+        s.innerHTML = `🟢 Sorteo <b>${escapeHtml(kind)}</b> · recoge números hasta las <b>${escapeHtml(cutoff)}</b> (hora de Cuba)`;
+      }
+      const betBtn = $("c3BetBtn");
+      if(betBtn) betBtn.disabled = closed;
+      const num = $("c3Num"), s3 = $("c3StakeThree"), s2 = $("c3StakeTwo");
+      if(num) num.disabled = closed;
+      if(s3) s3.disabled = closed;
+      if(s2) s2.disabled = closed;
+    }
     renderMine();
     renderHist();
     renderRecent();
@@ -1893,6 +1917,10 @@ const C3 = (function(){
 
   async function place(){
     if(!current) return;
+    if(data && data.closed){
+      msg(`⛔ El sorteo ${data.kind_label||""} ya cerró a las ${data.cutoff_label||"…"}. Espera el próximo (${data.next_kind||""} a las ${data.next_cutoff_label||"…"}).`, "danger");
+      return;
+    }
     const num = ($("c3Num") && $("c3Num").value || "").trim();
     const s3 = Math.max(int($("c3StakeThree"),0),0), s2 = Math.max(int($("c3StakeTwo"),0),0);
     if(!num) return msg("Escribe tu número.");
@@ -1920,7 +1948,9 @@ const C3 = (function(){
       const m3 = $("c3MaxThree"), m2 = $("c3MaxTwo");
       if(m3 && r.max_three != null && m3.value === "") m3.value = r.max_three;
       if(m2 && r.max_two != null && m2.value === "") m2.value = r.max_two;
-      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas · Topes: a las 3 <b>${r.max_three||0}</b> · últ. 2 <b>${r.max_two||0}</b>`;
+      if(info) info.innerHTML = `Sorteo <b>${escapeHtml(r.kind_label||"")}</b>` +
+        (r.closed ? ` · ⛔ cerrado a las <b>${escapeHtml(r.cutoff_label||"")}</b> (esperando resultado)` : ` · 🟢 recoge hasta <b>${escapeHtml(r.cutoff_label||"")}</b>`) +
+        ` · <b>${r.open_stake||0}</b> fichas · <b>${(r.bets||[]).length}</b> jugadas · Topes: a las 3 <b>${r.max_three||0}</b> · últ. 2 <b>${r.max_two||0}</b>`;
       const ta = $("c3List");
       if(ta) ta.value = listText();
       if(list){

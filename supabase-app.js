@@ -1340,6 +1340,26 @@ const C3 = (function(){
     const p3 = $("c3PayThree"), p2 = $("c3PayTwo");
     if(p3 && data && data.mult_three) p3.textContent = "paga " + data.mult_three + " por ficha" + ((data.max_three>0) ? " · tope " + data.max_three : " · sin tope");
     if(p2 && data && data.mult_two) p2.textContent = "paga " + data.mult_two + " por ficha" + ((data.max_two>0) ? " · tope " + data.max_two : " · sin tope");
+    const s = $("c3Sched");
+    if(s && data){
+      const closed = !!data.closed;
+      const kind = data.kind_label || "Sorteo";
+      const cutoff = data.cutoff_label || "…";
+      s.style.display = "block";
+      if(closed){
+        s.className = "c3-sched closed";
+        s.innerHTML = `⛔ Sorteo <b>${escapeHtml(kind)}</b> cerrado a las <b>${escapeHtml(cutoff)}</b> · esperando el resultado… <span class="muted" style="font-size:12px">Próximo: <b>${escapeHtml(data.next_kind||"")}</b> a las <b>${escapeHtml(data.next_cutoff_label||"…")}</b></span>`;
+      } else {
+        s.className = "c3-sched open";
+        s.innerHTML = `🟢 Sorteo <b>${escapeHtml(kind)}</b> · recoge números hasta las <b>${escapeHtml(cutoff)}</b> (hora de Cuba)`;
+      }
+      const betBtn = $("c3BetBtn");
+      if(betBtn) betBtn.disabled = closed;
+      const num = $("c3Num"), s3 = $("c3StakeThree"), s2 = $("c3StakeTwo");
+      if(num) num.disabled = closed;
+      if(s3) s3.disabled = closed;
+      if(s2) s2.disabled = closed;
+    }
     renderMine();
     renderHist();
     renderRecent();
@@ -1378,6 +1398,10 @@ const C3 = (function(){
 
   async function place(){
     if(!current) return;
+    if(data && data.closed){
+      msg(`⛔ El sorteo ${data.kind_label||""} ya cerró a las ${data.cutoff_label||"…"}. Espera el próximo (${data.next_kind||""} a las ${data.next_cutoff_label||"…"}).`, "danger");
+      return;
+    }
     const num = ($("c3Num") && $("c3Num").value || "").trim();
     const s3 = Math.max(int($("c3StakeThree"),0),0), s2 = Math.max(int($("c3StakeTwo"),0),0);
     if(!num) return msg("Escribe tu número.");
@@ -1405,7 +1429,9 @@ const C3 = (function(){
       const m3 = $("c3MaxThree"), m2 = $("c3MaxTwo");
       if(m3 && r.max_three != null && m3.value === "") m3.value = r.max_three;
       if(m2 && r.max_two != null && m2.value === "") m2.value = r.max_two;
-      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas · Topes: a las 3 <b>${r.max_three||0}</b> · últ. 2 <b>${r.max_two||0}</b>`;
+      if(info) info.innerHTML = `Sorteo <b>${escapeHtml(r.kind_label||"")}</b>` +
+        (r.closed ? ` · ⛔ cerrado a las <b>${escapeHtml(r.cutoff_label||"")}</b> (esperando resultado)` : ` · 🟢 recoge hasta <b>${escapeHtml(r.cutoff_label||"")}</b>`) +
+        ` · <b>${r.open_stake||0}</b> fichas · <b>${(r.bets||[]).length}</b> jugadas · Topes: a las 3 <b>${r.max_three||0}</b> · últ. 2 <b>${r.max_two||0}</b>`;
       const ta = $("c3List");
       if(ta) ta.value = listText();
       if(list){

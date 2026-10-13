@@ -5,6 +5,11 @@
 --   p_stake_two   -> si coinciden los últimos 2, paga mult_two por ficha
 -- Ejemplo: "217-3-5" = número 217, 3 fichas a las 3, 5 fichas a los últimos 2.
 -- Si sale 217, gana AMBAS (3*mult_three + 5*mult_two).
+--
+-- DOS SORTEOS AL DÍA con horarios fijos (hora de Cuba, America/Havana):
+--   Día   : deja de recoger números a las 12:30 p.m.
+--   Noche : deja de recoger números a las  8:00 p.m.
+-- El admin SOLO puede publicar el ganador DESPUÉS de la hora de cierre.
 -- ============================================================
 
 create table if not exists public.cash3_config (
@@ -26,9 +31,12 @@ create table if not exists public.cash3_round (
   winner text,
   settled bigint,
   total_staked bigint not null default 0,
-  total_paid bigint not null default 0
+  total_paid bigint not null default 0,
+  kind text,
+  cutoff bigint
 );
 create index if not exists cash3_round_open_idx on public.cash3_round(finished, opened desc);
+create index if not exists cash3_round_kind_idx on public.cash3_round(kind);
 
 create table if not exists public.cash3_bet (
   id bigserial primary key,
@@ -49,6 +57,35 @@ alter table public.cash3_config enable row level security;
 alter table public.cash3_round enable row level security;
 alter table public.cash3_bet enable row level security;
 
+-- ---------- horario ----------
+
+create or replace function public._cash3_schedule(p_now bigint)
+returns table(kind text, cutoff bigint)
+language plpgsql
+stable
+set search_path to 'public'
+as $$
+declare
+  v_hav timestamp := to_timestamp(p_now / 1000.0) at time zone 'America/Havana';
+  v_min int := extract(hour from v_hav)::int * 60 + extract(minute from v_hav)::int;
+  v_date date := v_hav::date;
+  k text; c_ts timestamptz;
+begin
+  if v_min < 12 * 60 + 30 then
+    k := 'dia';
+    c_ts := (v_date::text || ' 12:30')::timestamp at time zone 'America/Havana';
+  elsif v_min < 20 * 60 then
+    k := 'noche';
+    c_ts := (v_date::text || ' 20:00')::timestamp at time zone 'America/Havana';
+  else
+    k := 'dia';
+    c_ts := ((v_date + 1)::text || ' 12:30')::timestamp at time zone 'America/Havana';
+  end if;
+  return query select k, (extract(epoch from c_ts) * 1000)::bigint;
+end $$;
+
+revoke all on function public._cash3_schedule(bigint) from public, anon, authenticated;
+
 -- ---------- interno ----------
 
 create or replace function public._cash3_open_round(p_now bigint)
@@ -57,12 +94,13 @@ language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare rid text;
+declare rid text; sch record;
 begin
   select id into rid from cash3_round where finished = false order by opened desc limit 1;
   if rid is null then
+    select * into sch from public._cash3_schedule(p_now);
     rid := 'c3_' || to_char(now(), 'YYYYMMDDHH24MISS') || '_' || substr(md5(random()::text), 1, 6);
-    insert into cash3_round (id, opened, finished) values (rid, p_now, false);
+    insert into cash3_round (id, opened, finished, kind, cutoff) values (rid, p_now, false, sch.kind, sch.cutoff);
   end if;
   return rid;
 end $$;
@@ -78,14 +116,21 @@ security definer
 set search_path to 'public'
 as $$
 declare
-  u users; rid text; r cash3_round; cfg cash3_config;
-  mine jsonb; recent jsonb; hist jsonb;
+  u users; rid text; r cash3_round; cfg cash3_config; now_ms bigint;
+  mine jsonb; recent jsonb; hist jsonb; sch record;
+  k_label text; k_next text; c_label text; cn_label text;
 begin
   u := public._sess_user(p_token);
   if u.id is null then raise exception 'Sesión expirada. Cierra y vuelve a entrar.'; end if;
   select * into cfg from cash3_config where id = 1;
-  rid := public._cash3_open_round((extract(epoch from now()) * 1000)::bigint);
+  now_ms := (extract(epoch from now()) * 1000)::bigint;
+  rid := public._cash3_open_round(now_ms);
   select * into r from cash3_round where id = rid;
+  k_label := case when r.kind = 'dia' then 'Día' when r.kind = 'noche' then 'Noche' else 'Sorteo' end;
+  c_label := case when r.cutoff is not null then lower(to_char(timezone('America/Havana', to_timestamp(r.cutoff / 1000.0)), 'HH12:MI AM')) else null end;
+  select * into sch from public._cash3_schedule(now_ms);
+  k_next := case when sch.kind = 'dia' then 'Día' else 'Noche' end;
+  cn_label := lower(to_char(timezone('America/Havana', to_timestamp(sch.cutoff / 1000.0)), 'HH12:MI AM'));
   select coalesce(jsonb_agg(jsonb_build_object('id', b.id, 'num', b.num,
            'stake_three', b.stake_three, 'stake_two', b.stake_two,
            'status', b.status, 'payout', b.payout, 'created', b.created) order by b.created desc), '[]'::jsonb)
@@ -106,6 +151,9 @@ begin
   return jsonb_build_object(
     'round', rid, 'opened', r.opened, 'balance', u.balance,
     'mult_three', cfg.mult_three, 'mult_two', cfg.mult_two, 'max_three', cfg.max_three, 'max_two', cfg.max_two,
+    'kind', r.kind, 'kind_label', k_label, 'cutoff', r.cutoff, 'cutoff_label', c_label,
+    'closed', (r.cutoff is not null and now_ms > r.cutoff),
+    'next_kind', k_next, 'next_cutoff_label', cn_label,
     'mine', mine, 'recent', recent, 'history', hist);
 end $$;
 
@@ -115,7 +163,7 @@ language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare u users; r cash3_round; cfg cash3_config; rid text; vnum text; st3 int; st2 int; total int; cur3 bigint; cur2 bigint; date_txt text; detail_txt text;
+declare u users; r cash3_round; cfg cash3_config; rid text; vnum text; st3 int; st2 int; total int; cur3 bigint; cur2 bigint; date_txt text; detail_txt text; now_ms bigint;
 begin
   u := public._sess_user(p_token);
   if u.id is null then raise exception 'Sesión expirada. Cierra y vuelve a entrar.'; end if;
@@ -132,6 +180,12 @@ begin
   if u.balance < total then raise exception 'No tienes suficientes fichas (% disponibles).', u.balance; end if;
   rid := public._cash3_open_round(p_now);
   select * into r from cash3_round where id = rid for update;
+  now_ms := (extract(epoch from now()) * 1000)::bigint;
+  if r.cutoff is not null and now_ms > r.cutoff then
+    raise exception 'El sorteo % ya dejó de recoger números a las % (hora de Cuba). Espera el próximo.',
+      case when r.kind = 'dia' then 'Día' else 'Noche' end,
+      lower(to_char(timezone('America/Havana', to_timestamp(r.cutoff / 1000.0)), 'HH12:MI AM'));
+  end if;
   if r.finished then raise exception 'La ronda acaba de cerrar. Vuelve a intentarlo.'; end if;
   if st3 > 0 and cfg.max_three > 0 then
     select coalesce(sum(stake_three), 0) into cur3
@@ -168,13 +222,15 @@ language plpgsql
 security definer
 set search_path to 'public'
 as $$
-declare a users; cfg cash3_config; rid text; bets jsonb; tot bigint; bynum jsonb; max3 bigint; max2 bigint;
+declare a users; cfg cash3_config; rid text; r cash3_round; bets jsonb; tot bigint; bynum jsonb; max3 bigint; max2 bigint; now_ms bigint;
 begin
   a := public._sess_user(p_token);
   if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
   select * into cfg from cash3_config where id = 1;
   max3 := cfg.max_three; max2 := cfg.max_two;
-  rid := public._cash3_open_round((extract(epoch from now()) * 1000)::bigint);
+  now_ms := (extract(epoch from now()) * 1000)::bigint;
+  rid := public._cash3_open_round(now_ms);
+  select * into r from cash3_round where id = rid;
   select coalesce(sum(stake_three + stake_two), 0) into tot from cash3_bet where round_id = rid and status = 'open';
   select coalesce(jsonb_agg(jsonb_build_object('user_id', b.user_id, 'num', b.num, 'stake_three', b.stake_three, 'stake_two', b.stake_two,
            'stake', b.stake_three + b.stake_two, 'name', b.uname, 'created', b.created) order by b.created desc), '[]'::jsonb)
@@ -192,7 +248,11 @@ begin
       from cash3_bet where round_id = rid and status = 'open' group by right(num, 2)
     ) t2 on t2.combo = right(t.num, 2);
   return jsonb_build_object('round', rid, 'open_stake', tot, 'bets', bets, 'by_num', bynum,
-    'max_three', max3, 'max_two', max2);
+    'max_three', max3, 'max_two', max2,
+    'kind', r.kind, 'kind_label', case when r.kind = 'dia' then 'Día' when r.kind = 'noche' then 'Noche' else 'Sorteo' end,
+    'cutoff', r.cutoff,
+    'cutoff_label', case when r.cutoff is not null then lower(to_char(timezone('America/Havana', to_timestamp(r.cutoff / 1000.0)), 'HH12:MI AM')) else null end,
+    'closed', (r.cutoff is not null and now_ms > r.cutoff));
 end $$;
 
 create or replace function public.cash3_admin_config(p_token text, p_max_three bigint, p_max_two bigint)
@@ -220,7 +280,7 @@ as $$
 declare
   a users; cfg cash3_config; w text; rid text; r cash3_round; b record;
   pay int; won_cnt int := 0; lost_cnt int := 0; tot_stake bigint := 0; tot_paid bigint := 0;
-  date_txt text; detail_txt text;
+  date_txt text; detail_txt text; now_ms bigint;
 begin
   a := public._sess_user(p_token);
   if a.id is null or not a.admin then raise exception 'Solo el administrador.'; end if;
@@ -232,6 +292,12 @@ begin
   if rid is null then raise exception 'No hay una ronda abierta.'; end if;
   select * into r from cash3_round where id = rid for update;
   if r.finished then raise exception 'Esa ronda ya se liquidó.'; end if;
+  now_ms := (extract(epoch from now()) * 1000)::bigint;
+  if r.cutoff is not null and now_ms < r.cutoff then
+    raise exception 'El sorteo % recoge números hasta las % (hora de Cuba). Publica el resultado después de esa hora.',
+      case when r.kind = 'dia' then 'Día' else 'Noche' end,
+      lower(to_char(timezone('America/Havana', to_timestamp(r.cutoff / 1000.0)), 'HH12:MI AM'));
+  end if;
   date_txt := to_char(now(), 'DD/MM/YYYY HH24:MI:SS');
   for b in select * from cash3_bet where round_id = rid and status = 'open' order by created for update loop
     tot_stake := tot_stake + b.stake_three + b.stake_two;
