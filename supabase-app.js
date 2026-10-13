@@ -363,6 +363,7 @@ async function refreshAdmin(){
     dailyCache = Array.isArray(od) ? od : [];
     renderAdmin();
     try{ C3.adminInfo(true); }catch(e){}
+    try{ CF.adminInfo(true); }catch(e){}
   }catch(e){}
 }
 
@@ -1447,6 +1448,128 @@ const C3 = (function(){
 /* ---------------- pestañas de acceso ---------------- */
 loginTab.onclick = ()=>{ loginBox.classList.remove("hidden"); regBox.classList.add("hidden"); loginTab.className="primary"; regTab.className="ghost"; };
 regTab.onclick = ()=>{ regBox.classList.remove("hidden"); loginBox.classList.add("hidden"); regTab.className="primary"; loginTab.className="ghost"; };
+
+/* ---------------- cara o cruz ---------------- */
+const CF = (()=>{
+  const $ = (id)=>document.getElementById(id);
+  let selected = "cara", timer = null, data = null;
+
+  function msg(html){ const m = $("cfResult"); if(m) m.innerHTML = html; }
+
+  function spin(cb, onDone){
+    let n = 0;
+    const faces = ["🪙","🌙"];
+    const flip = ()=>{ const e = $("cfResult"); if(!e) return; e.innerHTML = '<b style="font-size:26px">'+faces[n%2]+'</b>' + (n<2 ? " · lanzando…" : ""); if(n++ >= 8){ if(onDone) onDone(); } else setTimeout(flip, 90); };
+    flip();
+  }
+
+  function rowHtml(b, withName){
+    const badge = b.won ? `<span class="cf-badge won">GANASTE +${b.payout}</span>` : `<span class="cf-badge lost">PERDISTE</span>`;
+    const who = withName ? " · " + escapeHtml(b.uname||"") : "";
+    return `<div class="cf-mrow"><div class="cf-mmain">${b.choice==="cara"?"🪙 Cara":"🌙 Cruz"} → cayó <b>${b.result==="cara"?"🪙 Cara":"🌙 Cruz"}</b><span class="muted" style="font-size:12px">${who} · apostó ${b.stake} 🪙</span></div><div style="text-align:right;white-space:nowrap">${badge}</div></div>`;
+  }
+
+  function render(){
+    if(data && data.mult != null){
+      const pt = $("cfPayTxt");
+      if(pt) pt.textContent = "paga " + (data.mult) + "x si aciertas · máximo " + data.max_bet + " fichas por apuesta";
+    }
+    const cb = $("cfBalance");
+    if(cb && current) cb.textContent = current.balance;
+    const c1 = $("cfCara"), c2 = $("cfCruz");
+    if(c1) c1.classList.toggle("on", selected === "cara");
+    if(c2) c2.classList.toggle("on", selected === "cruz");
+    const mine = $("cfMine"), rec = $("cfRecent");
+    if(mine) mine.innerHTML = (data && data.mine || []).map(b=>rowHtml(b,false)).join("") || '<div class="muted">Aún no has lanzado.</div>';
+    if(rec) rec.innerHTML = (data && data.recent || []).map(b=>rowHtml(b,true)).join("") || '<div class="muted">Sin lanzamientos todavía.</div>';
+  }
+
+  function pick(c){ selected = c; render(); }
+
+  async function load(silent){
+    if(!current || !token) return;
+    try{
+      data = await sbRpc("coinflip_state", { p_token: token });
+      render();
+    }catch(e){ if(!silent) msg("Error: " + msgDeError(e)); }
+  }
+
+  async function flip(){
+    if(!current || !token) return;
+    const stake = Math.floor(Number($("cfStake") && $("cfStake").value));
+    if(!Number.isFinite(stake) || stake <= 0) return msg("Escribe cuántas fichas quieres apostar.");
+    if(stake > current.balance) return msg("No tienes suficientes fichas (tienes " + current.balance + ").");
+    const btn = $("cfBetBtn");
+    if(btn){ btn.disabled = true; }
+    try{
+      const r = await sbRpc("coinflip_flip", { p_token: token, p_choice: selected, p_stake: stake, p_now: Date.now() });
+      if(r && r.balance != null){
+        current.balance = r.balance;
+        updateBalanceUI();
+        data = await sbRpc("coinflip_state", { p_token: token });
+        render();
+      }
+      spin(null, ()=>{
+        const e = $("cfResult"); if(!e) return;
+        e.innerHTML = (r.won ? '<b class="ok">🎉 ¡GANASTE!</b>' : '<b class="bad">Perdiste…</b>')
+          + ' · Cayó <b>' + (r.result==="cara"?"🪙 Cara":"🌙 Cruz") + '</b>'
+          + ' · apostaste ' + r.stake + ' 🪙'
+          + (r.won ? ' · <b class="ok">+'+r.payout+' 🪙</b>' : ' · esta vez no hubo suerte');
+        if(r.won){ try{ triggerWinRain(); }catch(err){} }
+      });
+      if($("cfStake")) $("cfStake").value = "";
+    }catch(err){ msg("Error: " + msgDeError(err)); }
+    finally{
+      if(btn){ btn.disabled = false; }
+    }
+  }
+
+  function open(){
+    $("cfGame").classList.remove("hidden");
+    document.getElementById("mainGames").classList.add("hidden");
+    selected = "cara";
+    load();
+    if(timer) clearInterval(timer);
+    timer = setInterval(()=>{ if($("cfGame") && !$("cfGame").classList.contains("hidden")) load(true); }, 5000);
+  }
+
+  function close(){
+    $("cfGame").classList.add("hidden");
+    document.getElementById("mainGames").classList.remove("hidden");
+    if(timer){ clearInterval(timer); timer = null; }
+  }
+
+  async function adminInfo(silent){
+    if(!current || !current.admin) return;
+    try{
+      const r = await sbRpc("coinflip_admin_info", { p_token: token });
+      const m3 = $("cfMult"), m2 = $("cfMaxBet");
+      if(m3 && r.mult != null && m3.value === "") m3.value = r.mult;
+      if(m2 && r.max_bet != null && m2.value === "") m2.value = r.max_bet;
+      const box = $("cfAdminInfo");
+      if(box){
+        const profit = (r.bets||0) - (r.paid||0);
+        const pct = (r.bets ? (profit/r.bets*100).toFixed(1) : "0.0");
+        box.innerHTML = `Paga <b>${r.mult}x</b> · máximo <b>${r.max_bet}</b> fichas por apuesta · ${r.flips||0} lanzamientos · apostado ${r.bets||0} 🪙 · pagado ${r.paid||0} 🪙 · <b class="${profit>=0?"ok":"bad"}">ganancia de la casa ${profit} (${pct}%)</b>`;
+      }
+    }catch(e){ if(!silent){ const box = $("cfAdminInfo"); if(box) box.textContent = "Error: " + msgDeError(e); } }
+  }
+
+  async function adminSave(){
+    if(!current || !current.admin) return;
+    const mult = Number($("cfMult") && $("cfMult").value);
+    const maxBet = Math.floor(Number($("cfMaxBet") && $("cfMaxBet").value));
+    if(!Number.isFinite(mult) || mult <= 1) return alert("El múltiplo debe ser mayor que 1 (ej. 1.9).");
+    if(!Number.isFinite(maxBet) || maxBet < 1) return alert("Escribe el máximo por apuesta (mayor que 0).");
+    try{
+      await sbRpc("coinflip_admin_config", { p_token: token, p_mult: mult, p_max_bet: maxBet });
+      alert("Configuración de Cara o Cruz guardada.");
+      adminInfo();
+    }catch(e){ alert("Error: " + msgDeError(e)); }
+  }
+
+  return { open, close, load, pick, flip, adminInfo, adminSave };
+})();
 
 /* ---------------- lluvia de fichas ---------------- */
 function startPortalRain(){

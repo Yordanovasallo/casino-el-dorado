@@ -227,6 +227,7 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="SC.open()">🎟️<div style="font-size:17px;margin-top:6px">Raspa y Gana<br>10 fichas · premios hasta 1000</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="BETS.open()">⚽<div style="font-size:17px;margin-top:6px">Apuestas Deportivas<br>fútbol y baloncesto · 1 · X · 2</div></button>
 <button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="C3.open()">🎲<div style="font-size:17px;margin-top:6px">Cash 3<br>un número · a las 3 y/o a los últimos 2 · paga 400x / 70x</div></button>
+<button class="ghost" style="grid-column:1/-1;height:140px;font-size:48px" onclick="CF.open()">🪙<div style="font-size:17px;margin-top:6px">Cara o Cruz<br>instantáneo · acertar y ganas tu apuesta multiplicada (1.9x)</div></button>
 </div></div>
 <div id="agentCard" class="card hidden"><h3 style="margin-top:0">🧑💼 Panel de agente</h3><div class="muted">Gestiona tus jugadores, ajusta su saldo y cobra tu comisión.</div><button class="primary" onclick="AG.open()" style="margin-top:10px">Abrir panel de agente</button></div>
 </div>
@@ -350,6 +351,38 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 <div class="c3-box"><h3 style="margin-top:0">📜 Mis jugadas recientes</h3><div id="c3Recent" style="display:grid;gap:8px"></div></div>
 </section>
 
+<section id="cfGame" class="card gscreen hidden">
+<style>
+.cf-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cf-head h2{margin:0}
+.cf-top{padding:12px 14px;background:linear-gradient(180deg,#17152a,#0b1220);border:1px solid #6b5420;border-radius:14px;margin:12px 0;font-size:15px}
+.cf-box{background:linear-gradient(180deg,#1a1730,#0d1322);border:1px solid #33305a;border-radius:16px;padding:16px;margin-bottom:12px}
+.cf-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.cf-c{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 8px;border-radius:14px;border:1px solid #3a3766;background:#151a2b;color:#e8ecf6;cursor:pointer;font:inherit;font-size:15px;font-weight:800}
+.cf-c.on{border-color:#f5c451;background:#2a2340;box-shadow:0 0 14px rgba(245,196,81,.35)}
+.cf-icon{font-size:46px}
+.cf-mrow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:#151a2b;border:1px solid #2c2a4d;margin-bottom:8px}
+.cf-mmain{font-size:14px}
+.cf-badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;margin-left:6px;white-space:nowrap}
+.cf-badge.won{background:#14532d;color:#7dffb0}
+.cf-badge.lost{background:#4a1520;color:#ff9aa8}
+#cfResult{text-align:center;font-size:15px}
+</style>
+<div class="cf-head"><button class="ghost" style="width:auto" onclick="CF.close()">← Volver</button><h2>🪙 Cara o Cruz</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="CF.load()">🔄 Actualizar</button></div>
+<div class="cf-top">🪙 Saldo: <b id="cfBalance" style="color:#f5c451">0</b> fichas · <span class="muted" id="cfPayTxt">paga 1.9x si aciertas</span></div>
+<div class="cf-box">
+<div class="muted" style="text-align:center">Elige Cara o Cruz y escribe tu apuesta</div>
+<div class="cf-pick"><button class="cf-c" id="cfCara" onclick="CF.pick('cara')"><span class="cf-icon">🪙</span>CARA</button><button class="cf-c" id="cfCruz" onclick="CF.pick('cruz')"><span class="cf-icon">🌙</span>CRUZ</button></div>
+<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center">
+<input id="cfStake" type="number" min="1" inputmode="numeric" placeholder="Fichas a apostar" style="width:100%;font-size:18px">
+<button class="primary" id="cfBetBtn" style="width:auto" onclick="CF.flip()">🎲 LANZAR</button>
+</div>
+<div id="cfResult" class="notice" style="margin-top:12px">Elige Cara o Cruz, escribe cuántas fichas quieres apostar y lanza la moneda.</div>
+</div>
+<div class="cf-box"><h3 style="margin-top:0">🎯 Mis últimos lanzamientos</h3><div id="cfMine" style="display:grid;gap:8px"></div></div>
+<div class="cf-box"><h3 style="margin-top:0">🕘 Lanzamientos recientes</h3><div id="cfRecent" style="display:grid;gap:8px"></div></div>
+</section>
+
 <section id="agentPanel" class="card gscreen hidden">
 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="ghost" style="width:auto" onclick="AG.close()">← Volver</button><h2 style="margin:0">🧑💼 Panel de agente</h2><button class="ghost" style="width:auto;margin-left:auto" onclick="AG.refresh()">🔄 Actualizar</button></div>
 <div id="agentSummary" class="notice" style="margin:12px 0"></div>
@@ -390,6 +423,14 @@ body:has(#appNav:not(.hidden)) #app{padding-bottom:92px}
 <div class="muted" style="font-size:12px;margin-top:12px">Lista completa de jugadas (nombre-número-a las 3-últimos 2) para enviar por WhatsApp:</div>
 <textarea id="c3List" readonly rows="6" placeholder="Aún no hay jugadas abiertas." style="width:100%;margin-top:6px;padding:10px;border-radius:12px;border:1px solid #3a3766;background:#0b1020;color:#e8ecf6;font:inherit;font-size:14px;resize:vertical;box-sizing:border-box"></textarea>
 <div class="grid"><button class="primary" onclick="C3.copyList()">📋 Copiar lista</button><button class="ghost" onclick="C3.shareList()">📲 Enviar por WhatsApp</button></div>
+<h3>🪙 Cara o Cruz</h3>
+<div class="muted" style="font-size:12px">Juego instantáneo de moneda. El múltiplo es lo que paga por cada ficha apostada (ej. 1.9 = apuestas 10 fichas y aciertas → ganas 19).</div>
+<div id="cfAdminInfo" class="notice" style="margin:8px 0">—</div>
+<div class="grid" style="margin-top:8px">
+<input id="cfMult" type="number" step="0.1" min="1.1" max="10" placeholder="Paga por ficha (ej: 1.9)">
+<input id="cfMaxBet" type="number" min="1" placeholder="Máximo por apuesta">
+</div>
+<button class="ghost" onclick="CF.adminSave()" style="margin-top:8px">💾 Guardar configuración</button>
 <style>
 .adm-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:10px 0}
 .adm-urow{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:1px solid #33305a;background:#151a2b;color:#e8ecf6;cursor:pointer;font:inherit;text-align:left}
@@ -834,6 +875,7 @@ async function refreshAdmin(){
     dailyCache = Array.isArray(od) ? od : [];
     renderAdmin();
     try{ C3.adminInfo(true); }catch(e){}
+    try{ CF.adminInfo(true); }catch(e){}
   }catch(e){}
 }
 
@@ -1918,6 +1960,128 @@ const C3 = (function(){
 /* ---------------- pestañas de acceso ---------------- */
 loginTab.onclick = ()=>{ loginBox.classList.remove("hidden"); regBox.classList.add("hidden"); loginTab.className="primary"; regTab.className="ghost"; };
 regTab.onclick = ()=>{ regBox.classList.remove("hidden"); loginBox.classList.add("hidden"); regTab.className="primary"; loginTab.className="ghost"; };
+
+/* ---------------- cara o cruz ---------------- */
+const CF = (()=>{
+  const $ = (id)=>document.getElementById(id);
+  let selected = "cara", timer = null, data = null;
+
+  function msg(html){ const m = $("cfResult"); if(m) m.innerHTML = html; }
+
+  function spin(cb, onDone){
+    let n = 0;
+    const faces = ["🪙","🌙"];
+    const flip = ()=>{ const e = $("cfResult"); if(!e) return; e.innerHTML = '<b style="font-size:26px">'+faces[n%2]+'</b>' + (n<2 ? " · lanzando…" : ""); if(n++ >= 8){ if(onDone) onDone(); } else setTimeout(flip, 90); };
+    flip();
+  }
+
+  function rowHtml(b, withName){
+    const badge = b.won ? `<span class="cf-badge won">GANASTE +${b.payout}</span>` : `<span class="cf-badge lost">PERDISTE</span>`;
+    const who = withName ? " · " + escapeHtml(b.uname||"") : "";
+    return `<div class="cf-mrow"><div class="cf-mmain">${b.choice==="cara"?"🪙 Cara":"🌙 Cruz"} → cayó <b>${b.result==="cara"?"🪙 Cara":"🌙 Cruz"}</b><span class="muted" style="font-size:12px">${who} · apostó ${b.stake} 🪙</span></div><div style="text-align:right;white-space:nowrap">${badge}</div></div>`;
+  }
+
+  function render(){
+    if(data && data.mult != null){
+      const pt = $("cfPayTxt");
+      if(pt) pt.textContent = "paga " + (data.mult) + "x si aciertas · máximo " + data.max_bet + " fichas por apuesta";
+    }
+    const cb = $("cfBalance");
+    if(cb && current) cb.textContent = current.balance;
+    const c1 = $("cfCara"), c2 = $("cfCruz");
+    if(c1) c1.classList.toggle("on", selected === "cara");
+    if(c2) c2.classList.toggle("on", selected === "cruz");
+    const mine = $("cfMine"), rec = $("cfRecent");
+    if(mine) mine.innerHTML = (data && data.mine || []).map(b=>rowHtml(b,false)).join("") || '<div class="muted">Aún no has lanzado.</div>';
+    if(rec) rec.innerHTML = (data && data.recent || []).map(b=>rowHtml(b,true)).join("") || '<div class="muted">Sin lanzamientos todavía.</div>';
+  }
+
+  function pick(c){ selected = c; render(); }
+
+  async function load(silent){
+    if(!current || !token) return;
+    try{
+      data = await sbRpc("coinflip_state", { p_token: token });
+      render();
+    }catch(e){ if(!silent) msg("Error: " + msgDeError(e)); }
+  }
+
+  async function flip(){
+    if(!current || !token) return;
+    const stake = Math.floor(Number($("cfStake") && $("cfStake").value));
+    if(!Number.isFinite(stake) || stake <= 0) return msg("Escribe cuántas fichas quieres apostar.");
+    if(stake > current.balance) return msg("No tienes suficientes fichas (tienes " + current.balance + ").");
+    const btn = $("cfBetBtn");
+    if(btn){ btn.disabled = true; }
+    try{
+      const r = await sbRpc("coinflip_flip", { p_token: token, p_choice: selected, p_stake: stake, p_now: Date.now() });
+      if(r && r.balance != null){
+        current.balance = r.balance;
+        updateBalanceUI();
+        data = await sbRpc("coinflip_state", { p_token: token });
+        render();
+      }
+      spin(null, ()=>{
+        const e = $("cfResult"); if(!e) return;
+        e.innerHTML = (r.won ? '<b class="ok">🎉 ¡GANASTE!</b>' : '<b class="bad">Perdiste…</b>')
+          + ' · Cayó <b>' + (r.result==="cara"?"🪙 Cara":"🌙 Cruz") + '</b>'
+          + ' · apostaste ' + r.stake + ' 🪙'
+          + (r.won ? ' · <b class="ok">+'+r.payout+' 🪙</b>' : ' · esta vez no hubo suerte');
+        if(r.won){ try{ triggerWinRain(); }catch(err){} }
+      });
+      if($("cfStake")) $("cfStake").value = "";
+    }catch(err){ msg("Error: " + msgDeError(err)); }
+    finally{
+      if(btn){ btn.disabled = false; }
+    }
+  }
+
+  function open(){
+    $("cfGame").classList.remove("hidden");
+    document.getElementById("mainGames").classList.add("hidden");
+    selected = "cara";
+    load();
+    if(timer) clearInterval(timer);
+    timer = setInterval(()=>{ if($("cfGame") && !$("cfGame").classList.contains("hidden")) load(true); }, 5000);
+  }
+
+  function close(){
+    $("cfGame").classList.add("hidden");
+    document.getElementById("mainGames").classList.remove("hidden");
+    if(timer){ clearInterval(timer); timer = null; }
+  }
+
+  async function adminInfo(silent){
+    if(!current || !current.admin) return;
+    try{
+      const r = await sbRpc("coinflip_admin_info", { p_token: token });
+      const m3 = $("cfMult"), m2 = $("cfMaxBet");
+      if(m3 && r.mult != null && m3.value === "") m3.value = r.mult;
+      if(m2 && r.max_bet != null && m2.value === "") m2.value = r.max_bet;
+      const box = $("cfAdminInfo");
+      if(box){
+        const profit = (r.bets||0) - (r.paid||0);
+        const pct = (r.bets ? (profit/r.bets*100).toFixed(1) : "0.0");
+        box.innerHTML = `Paga <b>${r.mult}x</b> · máximo <b>${r.max_bet}</b> fichas por apuesta · ${r.flips||0} lanzamientos · apostado ${r.bets||0} 🪙 · pagado ${r.paid||0} 🪙 · <b class="${profit>=0?"ok":"bad"}">ganancia de la casa ${profit} (${pct}%)</b>`;
+      }
+    }catch(e){ if(!silent){ const box = $("cfAdminInfo"); if(box) box.textContent = "Error: " + msgDeError(e); } }
+  }
+
+  async function adminSave(){
+    if(!current || !current.admin) return;
+    const mult = Number($("cfMult") && $("cfMult").value);
+    const maxBet = Math.floor(Number($("cfMaxBet") && $("cfMaxBet").value));
+    if(!Number.isFinite(mult) || mult <= 1) return alert("El múltiplo debe ser mayor que 1 (ej. 1.9).");
+    if(!Number.isFinite(maxBet) || maxBet < 1) return alert("Escribe el máximo por apuesta (mayor que 0).");
+    try{
+      await sbRpc("coinflip_admin_config", { p_token: token, p_mult: mult, p_max_bet: maxBet });
+      alert("Configuración de Cara o Cruz guardada.");
+      adminInfo();
+    }catch(e){ alert("Error: " + msgDeError(e)); }
+  }
+
+  return { open, close, load, pick, flip, adminInfo, adminSave };
+})();
 
 /* ---------------- lluvia de fichas ---------------- */
 function startPortalRain(){
