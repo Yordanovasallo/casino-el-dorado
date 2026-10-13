@@ -299,7 +299,7 @@ async function refreshAdmin(){
     agentsCache = Array.isArray(oa) ? oa : [];
     dailyCache = Array.isArray(od) ? od : [];
     renderAdmin();
-    try{ C3.adminInfo(); }catch(e){}
+    try{ C3.adminInfo(true); }catch(e){}
   }catch(e){}
 }
 
@@ -1190,10 +1190,30 @@ const BETS = (function(){
 /* ---------------- Cash 3 ---------------- */
 const C3 = (function(){
   const $ = n => document.getElementById(n);
-  let data = null, timer = null, busy = false;
+  let data = null, timer = null, busy = false, adminData = null;
 
   const msg = (t, cls)=>{ const m=$("c3Msg"); if(!m) return; m.textContent=t; if(cls) m.className="notice "+cls; else m.className="notice"; };
   const int = (el, def)=>{ const v = parseInt(el && el.value, 10); return isNaN(v) ? (def||0) : v; };
+
+  function listText(){
+    const bets = (adminData && adminData.bets) || [];
+    return [...bets].sort((a,b)=>(a.created||0)-(b.created||0))
+      .map(b=>`${b.name}-${b.num}-${b.stake_three}-${b.stake_two}`).join("\n");
+  }
+  async function copyList(){
+    const t = listText();
+    if(!t) return alert("No hay jugadas abiertas todavía.");
+    try{ await navigator.clipboard.writeText(t); msg("Lista copiada ✅"); alert("Lista copiada ✅"); }
+    catch(e){
+      const ta = $("c3List");
+      if(ta){ ta.removeAttribute("readonly"); ta.select(); try{ document.execCommand("copy"); }catch(_){} ta.setAttribute("readonly","readonly"); alert("Lista copiada ✅"); }
+    }
+  }
+  function shareList(){
+    const t = listText();
+    if(!t) return alert("No hay jugadas abiertas todavía.");
+    window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
+  }
 
   function open(){
     $("c3Game").classList.remove("hidden");
@@ -1299,14 +1319,17 @@ const C3 = (function(){
     }catch(e){ msg("No se pudo apostar: " + msgDeError(e), "danger"); }
   }
 
-  async function adminInfo(){
+  async function adminInfo(silent){
     if(!current || !current.admin) return;
     const info = $("c3AdminInfo"), list = $("c3AdminBets");
-    if(info) info.textContent = "Cargando…";
+    if(!silent && info) info.textContent = "Cargando…";
     try{
       const r = await sbRpc("cash3_admin_info", { p_token: token }) || {};
+      adminData = r;
       const by = r.by_num || [];
       if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas`;
+      const ta = $("c3List");
+      if(ta) ta.value = listText();
       if(list){
         list.innerHTML = by.length ? by.map(b=>`<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.count} jug. · a las 3: ${b.stake_three} · últ. 2: ${b.stake_two}</span><span class="adm-ubal">${b.stake} 🪙</span></div>`).join("")
           : '<div class="muted" style="padding:8px">Sin apuestas abiertas todavía.</div>';
@@ -1329,7 +1352,7 @@ const C3 = (function(){
     }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
   }
 
-  return {open, close, load, clean, preview, place, adminInfo, adminSettle};
+  return {open, close, load, clean, preview, place, adminInfo, adminSettle, copyList, shareList};
 })();
 
 
