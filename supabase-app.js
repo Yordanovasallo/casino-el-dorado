@@ -1331,15 +1331,18 @@ const C3 = (function(){
       const r = await sbRpc("cash3_admin_info", { p_token: token }) || {};
       adminData = r;
       const by = r.by_num || [];
-      const mx = $("c3MaxNum");
-      if(mx && r.max_per_num != null && mx.value === "") mx.value = r.max_per_num;
-      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas · Tope por número: <b>${r.max_per_num||0}</b>`;
+      const m3 = $("c3MaxThree"), m2 = $("c3MaxTwo");
+      if(m3 && r.max_three != null && m3.value === "") m3.value = r.max_three;
+      if(m2 && r.max_two != null && m2.value === "") m2.value = r.max_two;
+      if(info) info.innerHTML = `Ronda abierta · <b>${r.open_stake||0}</b> fichas apostadas · <b>${(r.bets||[]).length}</b> jugadas · Topes: a las 3 <b>${r.max_three||0}</b> · últ. 2 <b>${r.max_two||0}</b>`;
       const ta = $("c3List");
       if(ta) ta.value = listText();
       if(list){
         list.innerHTML = by.length ? by.map(b=>{
-          const rem = b.remaining != null ? ` · <span style="color:${b.remaining>0?'#7dffb0':'#ff9aa8'}">${b.remaining} disp.</span>` : "";
-          return `<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.count} jug. · a las 3: ${b.stake_three} · últ. 2: ${b.stake_two}${rem}</span><span class="adm-ubal">${b.stake} 🪙</span></div>`;
+          const rem = [];
+          if(b.rem_three != null) rem.push(`<span style="color:${b.rem_three>0?'#7dffb0':'#ff9aa8'}">3: ${b.rem_three} disp.</span>`);
+          if(b.rem_two != null) rem.push(`<span style="color:${b.rem_two>0?'#7dffb0':'#ff9aa8'}">2: ${b.rem_two} disp.</span>`);
+          return `<div class="adm-urow" style="cursor:default"><span class="adm-unum">${escapeHtml(b.num)}</span><span class="adm-uname">${b.count} jug. · a las 3: ${b.stake_three} · últ. 2: ${b.stake_two}${rem.length?' · '+rem.join(' · '):''}</span><span class="adm-ubal">${b.stake} 🪙</span></div>`;
         }).join("")
           : '<div class="muted" style="padding:8px">Sin apuestas abiertas todavía.</div>';
       }
@@ -1363,11 +1366,12 @@ const C3 = (function(){
 
   async function adminSaveMax(){
     if(!current || !current.admin) return;
-    const v = Math.max(int($("c3MaxNum"),0), 0);
+    const v3 = Math.max(int($("c3MaxThree"),0), 0), v2 = Math.max(int($("c3MaxTwo"),0), 0);
     const info = $("c3AdminInfo");
     try{
-      const r = await sbRpc("cash3_admin_config", { p_token: token, p_max: v });
-      if(info) info.innerHTML = "Tope por número guardado: <b>" + (r&&r.max_per_num !== undefined ? r.max_per_num : v) + "</b> fichas.";
+      const r = await sbRpc("cash3_admin_config", { p_token: token, p_max_three: v3, p_max_two: v2 });
+      const got = r || {};
+      if(info) info.innerHTML = `Topes guardados: a las 3 = <b>${got.max_three != null ? got.max_three : v3}</b> · últimos 2 = <b>${got.max_two != null ? got.max_two : v2}</b>`;
       load(true);
       adminInfo(true);
     }catch(e){ if(info) info.textContent = "Error: " + msgDeError(e); }
