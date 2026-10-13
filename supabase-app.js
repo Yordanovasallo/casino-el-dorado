@@ -1267,8 +1267,8 @@ const C3 = (function(){
     const bal = $("c3Balance");
     if(bal) bal.textContent = (data && typeof data.balance==="number") ? data.balance : (current ? current.balance : 0);
     const p3 = $("c3PayThree"), p2 = $("c3PayTwo");
-    if(p3 && data && data.mult_three) p3.textContent = "paga " + data.mult_three + " por ficha";
-    if(p2 && data && data.mult_two) p2.textContent = "paga " + data.mult_two + " por ficha";
+    if(p3 && data && data.mult_three) p3.textContent = "paga " + data.mult_three + " por ficha" + ((data.max_three>0) ? " · tope " + data.max_three : " · sin tope");
+    if(p2 && data && data.mult_two) p2.textContent = "paga " + data.mult_two + " por ficha" + ((data.max_two>0) ? " · tope " + data.max_two : " · sin tope");
     renderMine();
     renderHist();
     renderRecent();
